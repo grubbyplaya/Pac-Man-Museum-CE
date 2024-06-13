@@ -1,0 +1,17 @@
+palettes: 
+  - name: sega
+    images: 
+      - palette.png
+
+converts:
+  - name: myimages
+    palette: sega
+    bpp: 4
+    images:
+      - paccursor.png
+    width-and-height: false
+
+outputs:
+  - type: bin
+    converts:
+      - myimages

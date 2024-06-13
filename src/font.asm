@@ -1,0 +1,37 @@
+#import "font/a.bin"
+#import "font/b.bin"
+#import "font/c.bin"
+#import "font/d.bin"
+#import "font/e.bin"
+#import "font/f.bin"
+#import "font/g.bin"
+#import "font/h.bin"
+#import "font/i.bin"
+#import "font/j.bin"
+#import "font/k.bin"
+#import "font/l.bin"
+#import "font/m.bin"
+#import "font/n.bin"
+#import "font/o.bin"
+#import "font/p.bin"
+#import "font/q.bin"
+#import "font/r.bin"
+#import "font/s.bin"
+#import "font/t.bin"
+#import "font/u.bin"
+#import "font/v.bin"
+#import "font/w.bin"
+#import "font/x.bin"
+#import "font/y.bin"
+#import "font/z.bin"
+;special characters
+Hyphen:
+#import	"font/hyphen.bin"
+Space:
+#import	"font/space.bin"
+Period:
+#import	"font/period.bin"
+LeftBracket:
+#import	"font/leftbracket.bin"
+RightBracket:
+#import	"font/rightbracket.bin"
