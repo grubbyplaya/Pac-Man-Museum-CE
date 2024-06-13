@@ -1,9 +1,4 @@
-<<<<<<< HEAD
-![](https://github.com/grubbyplaya/Pac-Man-Museum-CE/blob/main/pacbanner.png?raw=true)
-
-=======
 ![](https://github.com/grubbyplaya/Pac-Man_Museum-CE/blob/master/pacbanner.png)
->>>>>>> parent of 270d977 (Update readme.md)
 Pac-Man Museum CE is a collection of Pac-Man console ports for the TI-84+ CE. The end goal of this project is to include every single official Pac-Man port released on a Z80-based system.
 
 # Games Included
@@ -33,9 +28,5 @@ Arrow Keys: Control Pac-Man
 2nd: Open Game (Menu Only)
 
 Mode: Start/Pause Button
-<<<<<<< HEAD
 
 Clear: Exit Game
-=======
-Clear: Exit Game
->>>>>>> parent of 270d977 (Update readme.md)
