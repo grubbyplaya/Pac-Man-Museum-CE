@@ -6,6 +6,8 @@ Pac-Man Museum CE is a collection of Pac-Man console ports for the TI-84+ CE. Th
 
 Pac-Man (Game Gear) - January 29, 1991
 
+Pac-Man (MSX) - 1984
+
 **Coming soon:**
 
 Ms. Pac-Man (Master System) - December 1992
@@ -17,8 +19,6 @@ Pac-Mania (Master System) - 1991
 Pac-Attack (Game Gear) - June 1994
 
 **Potential Ports:**
-
-Pac-Man (MSX) - 1984
 
 Super Pac-Man (Sord M5) - 198X
 

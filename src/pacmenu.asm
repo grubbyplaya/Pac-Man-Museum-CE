@@ -47,6 +47,8 @@ START:
 	ld	(hl), $25
 	inc	hl
 	ld	(hl), %00011101
+	ld	hl, $E30004
+	ld	(hl), $3F
 
 	;set up front porch interrupt
 	ld	hl, mpLcdImsc
@@ -66,8 +68,6 @@ START:
 	ld	de, mpLcdPalette
 	ld	bc, $0012
 	ldir
-
-	ld	($D2DE02), sp
 
 	;decompress the menu art and load it into VRAM
 	ld	hl, MenuArt
@@ -123,18 +123,30 @@ LoadText:
 	call	ChkFindSym
 	jp	c, GameNotFound
 	ex	de, hl
-	ld	bc, 15
-	add	hl, bc
-	ld	c, (hl)
-	inc	hl
-	ld	b, (hl)
-	inc	hl
+
+	ld	bc, $20
+	ld	a, $FF
+	cpir
+
 	inc	hl
 	pop	de
 
 	;convert ASCII to graphics
 	push	hl
 	pop	ix
+
+	ex	af, af'
+	ld	l, a
+	ld	h, 160
+	mlt	hl
+	add	hl, hl
+	add	hl, hl
+	add	hl, hl
+
+	add	hl, de
+	ex	de, hl
+	ex	af, af'
+
 _:	ld	a, (ix)
 	sub	$41
 	jp	c, LoadNonLetter
@@ -295,6 +307,11 @@ LoadGame:
 	inc	hl
 	ld	(hl), $08
 
+	ld	hl, ExitGameSIS
+	ld	de, $D2F000
+	ld	bc, 11
+	ldir
+
 	ld	hl, Headers
 	ld	a, (CursorPos)
 	ld	c, a
@@ -306,24 +323,39 @@ LoadGame:
 	call	ChkFindSym
 	jp	c, START
 
+	ld	a, $D2
+	ld	mb, a
+	ld	($D2FFF0), sp
+	ld	sp, $D1A745
+	ld.sis	sp, $DFF0
+
 	ex	de, hl
-	ld	bc, 15
-	add	hl, bc
+	ld	bc, $20
+	ld	a, $FF
+	cpir
+
+	ld	bc, 3
+	or	a
+	sbc	hl, bc
+
 	ld	c, (hl)
 	inc	hl
 	ld	b, (hl)
 	inc	hl
+	inc	hl
 	ld	a, (hl)
 	inc	hl
+
 	cp	$80
 	jr	z, LoadGame_GG
+	cp	$83
+	jr	z, LoadGame_MSX
 
 LoadGame_GG:
 	xor	a
 	push	bc
 	ld	bc, 32
 	cpir
-
 	;load engine into RAM
 	ld	de, romStart
 	pop	bc
@@ -344,22 +376,41 @@ LoadGame_GG:
 
 	ld	hl, $E30004
 	ld	(hl), $27
+	jp.sis	$0000	;start of program
 
-	ld	hl, ExitGameSIS
-	ld	de, $D2F000
-	ld	bc, 5
+LoadGame_MSX:
+	xor	a
+	push	bc
+	ld	bc, 32
+	cpir
+
+	ld	de, romStart + $4018
+	pop	bc
 	ldir
 
-	ld	a, $D2
-	ld	mb, a
-	ld.lil	sp, $D1A745
-	ld.sis	sp, $DFF0
-	jp.sis	$0000	;start of program
+	ld	hl, MSXPalette
+	ld	de, mpLcdPalette
+	ld	bc, 32
+	ldir
+
+	ld	hl, pixelShadow
+	ld	de, pixelShadow+1
+	ld	bc, $4800
+	ld	(hl), $00
+	ldir
+
+	;clear VRAM again
+	ld	hl, VRAM
+	ld	de, VRAM+1
+	ld	bc, VRAMEnd-VRAM
+	ld	(hl), $00
+	ldir
+
+	jp.sis	$4018	;start of program
 
 ExitGame:
 	ld	a, $D0
 	ld	mb, a
-	ld	sp, ($D2DE02)
 	ld	hl, $F00004
 	ld	(hl), $11
 	inc	hl
@@ -376,18 +427,15 @@ ExitGame:
 	ret
 
 ExitGameSIS:
-	jp.lil	ExitGame
+	ld.lil	sp, ($D2FFF0)
+	jp.lil	START
 
 GameNotFound:
+	pop	de
 	;increment A and try again
 	ex	af, af'
 	inc	a
 	jp	LoadText
-
-WaitSomeFrames:
-	call	WaitAFrame
-	djnz	WaitSomeFrames
-	ret
 
 WaitAFrame:
 	ld	hl, mpLcdRis
@@ -401,7 +449,7 @@ WaitAFrame:
 
 Headers:
 	.dl PacManGGHeader
-	.dl $0000
+	.dl MSXHeader
 	.dl $0000
 	.dl $0000
 	.dl $0000
@@ -411,10 +459,14 @@ Headers:
 
 PacManGGHeader:
 	.db $15, "PacGG",0
+MSXHeader:
+	.db $15, "PacMSX",0
 
 MenuPalette:
 	.dw $0000, $109F, $200F, $DEF7, $7800, $7AF5, $FE20, $FF40, $FFFF
-
+MSXPalette:
+	.dw $0000, $0000, $A2C9, $BB2F, $AD5B, $C1DD, $D96A, $337D
+	.dw $ED8B, $7E2F, $670B, $EF30, $1E88, $D996, $6739, $FFFF
 MenuArt:
 #import "menu.bin"
 
