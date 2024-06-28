@@ -307,6 +307,13 @@ LoadGame:
 	inc	hl
 	ld	(hl), $08
 
+	;clear SafeRAM
+	ld	hl, pixelShadow
+	ld	de, pixelShadow+1
+	ld	bc, $4800
+	ld	(hl), $00
+	ldir
+
 	ld	hl, ExitGameSIS
 	ld	de, $D2F000
 	ld	bc, 11
@@ -347,11 +354,11 @@ LoadGame:
 	inc	hl
 
 	cp	$80
-	jr	z, LoadGame_GG
+	jr	z, LoadGame_Sega
 	cp	$83
 	jr	z, LoadGame_MSX
 
-LoadGame_GG:
+LoadGame_Sega:	;load Game Gear or Master System game
 	xor	a
 	push	bc
 	ld	bc, 32
@@ -368,17 +375,11 @@ LoadGame_GG:
 	ld	(hl), $00
 	ldir
 
-	;load DrawScreen
-	ld	hl, DrawScreen
-	ld	de, $D2E000
-	ld	bc, $0600
-	ldir
-
 	ld	hl, $E30004
 	ld	(hl), $27
 	jp.sis	$0000	;start of program
 
-LoadGame_MSX:
+LoadGame_MSX:	;load MSX game
 	xor	a
 	push	bc
 	ld	bc, 32
@@ -391,12 +392,6 @@ LoadGame_MSX:
 	ld	hl, MSXPalette
 	ld	de, mpLcdPalette
 	ld	bc, 32
-	ldir
-
-	ld	hl, pixelShadow
-	ld	de, pixelShadow+1
-	ld	bc, $4800
-	ld	(hl), $00
 	ldir
 
 	;clear VRAM again
@@ -450,7 +445,7 @@ WaitAFrame:
 Headers:
 	.dl PacManGGHeader
 	.dl MSXHeader
-	.dl $0000
+	.dl MsPacMSHeader
 	.dl $0000
 	.dl $0000
 	.dl $0000
@@ -461,6 +456,8 @@ PacManGGHeader:
 	.db $15, "PacGG",0
 MSXHeader:
 	.db $15, "PacMSX",0
+MsPacMSHeader:
+	.db $15, "MsPacMan",0
 
 MenuPalette:
 	.dw $0000, $109F, $200F, $DEF7, $7800, $7AF5, $FE20, $FF40, $FFFF
@@ -483,5 +480,3 @@ FrameCounter:
 .db $00
 
 #include "dzx0_fast.asm"
-
-#include "PacGG\screen_drawing_routines.asm"
