@@ -42,6 +42,13 @@ START:
 	ld	(hl), $00
 	ldir
 
+	;clear emulated memory map location
+	ld	hl, romStart
+	ld	de, romStart+1
+	ld	bc, $FFFF
+	ld	(hl), $00
+	ldir
+
 	;set up 4bpp mode with Vcomp interrupts
 	ld	hl, mpLcdCtrl
 	ld	(hl), $25
@@ -288,18 +295,18 @@ PreventOverwrite:	;stop the cursor from overwriting the BG
 	ret
 
 LoadGame:
+	;clear VRAM again
+	ld	hl, VRAM
+	ld	de, VRAM+1
+	ld	bc, VRAMEnd-VRAM
+	ld	(hl), $00
+	ldir
+
 	;set up 8bpp mode with Vcomp interrupts
 	ld	hl, mpLcdCtrl
 	ld	(hl), $27
 	inc	hl
 	ld	(hl), %00011001
-
-	;clear emulated memory map location
-	ld	hl, romStart
-	ld	de, romStart+1
-	ld	bc, $FFFF
-	ld	(hl), $00
-	ldir
 
 	;set up LCD interrupts
 	ld	hl, $F00004
@@ -355,6 +362,8 @@ LoadGame:
 
 	cp	$80
 	jr	z, LoadGame_Sega
+	cp	$82
+	jr	z, LoadGame_Sord
 	cp	$83
 	jr	z, LoadGame_MSX
 
@@ -363,20 +372,12 @@ LoadGame_Sega:	;load Game Gear or Master System game
 	push	bc
 	ld	bc, 32
 	cpir
-	;load engine into RAM
+
+	;load game into RAM
 	ld	de, romStart
 	pop	bc
 	ldir
 
-	;clear VRAM again
-	ld	hl, VRAM
-	ld	de, VRAM+1
-	ld	bc, VRAMEnd-VRAM
-	ld	(hl), $00
-	ldir
-
-	ld	hl, $E30004
-	ld	(hl), $27
 	jp.sis	$0000	;start of program
 
 LoadGame_MSX:	;load MSX game
@@ -385,23 +386,37 @@ LoadGame_MSX:	;load MSX game
 	ld	bc, 32
 	cpir
 
+	;load game into RAM
 	ld	de, romStart + $4018
 	pop	bc
 	ldir
 
+	;load TMS9918 palette into LCD palette RAM
 	ld	hl, MSXPalette
 	ld	de, mpLcdPalette
 	ld	bc, 32
 	ldir
 
-	;clear VRAM again
-	ld	hl, VRAM
-	ld	de, VRAM+1
-	ld	bc, VRAMEnd-VRAM
-	ld	(hl), $00
+	jp.sis	$4018	;start of program
+
+LoadGame_Sord:	;load Sord M5 game
+	xor	a
+	push	bc
+	ld	bc, 32
+	cpir
+
+	;load game into RAM
+	ld	de, romStart
+	pop	bc
 	ldir
 
-	jp.sis	$4018	;start of program
+	;load TMS9918 palette into LCD palette RAM
+	ld	hl, MSXPalette
+	ld	de, mpLcdPalette
+	ld	bc, 32
+	ldir
+
+	jp.sis $0000	;start of program
 
 ExitGame:
 	ld	a, $D0
@@ -446,7 +461,7 @@ Headers:
 	.dl PacManGGHeader
 	.dl MSXHeader
 	.dl MsPacMSHeader
-	.dl $0000
+	.dl SuperPacHeader
 	.dl $0000
 	.dl $0000
 	.dl $0000
@@ -458,6 +473,8 @@ MSXHeader:
 	.db $15, "PacMSX",0
 MsPacMSHeader:
 	.db $15, "MsPacMan",0
+SuperPacHeader:
+	.db $15, "SuperPac",0
 
 MenuPalette:
 	.dw $0000, $109F, $200F, $DEF7, $7800, $7AF5, $FE20, $FF40, $FFFF

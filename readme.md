@@ -10,6 +10,8 @@ Pac-Man (MSX) - 1984
 
 Ms. Pac-Man (Master System) - December 1992
 
+Super Pac-Man (Sord M5) - 198?
+
 **Coming soon:**
 
 Ms. Pac-Man (Game Gear) - 1993
@@ -17,10 +19,6 @@ Ms. Pac-Man (Game Gear) - 1993
 Pac-Mania (Master System) - 1991
 
 Pac-Attack (Game Gear) - June 1994
-
-**Potential Ports:**
-
-Super Pac-Man (Sord M5) - 198X
 
 # Controls
 
