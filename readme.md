@@ -8,6 +8,8 @@ Pac-Man (Game Gear) - January 29, 1991
 
 Pac-Man (MSX) - 1984
 
+Pac-Man (ColecoVision) - c. 1983
+
 Ms. Pac-Man (Master System) - December 1992
 
 Super Pac-Man (Sord M5) - 198?
@@ -29,3 +31,7 @@ Arrow Keys: Control Pac-Man
 Mode: Start/Pause Button
 
 Clear: Exit Game
+
+# Building
+
+Move [spasm-ng](https://github.com/alberthdev/spasm-ng) into the root directory and run build.bat to build the games. Move [convimg](https://github.com/mateoconlechuga/convimg) into the root directory and run buildart.bat to build the launcher art.

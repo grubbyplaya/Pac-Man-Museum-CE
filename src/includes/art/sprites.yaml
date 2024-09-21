@@ -1,0 +1,36 @@
+palettes: 
+  - name: menupalette
+    images: 
+      - src/includes/menupalette.png
+
+converts:
+  - name: sprites
+    palette: menupalette
+    bpp: 4
+    images:
+      - src/includes/art/PacManLeft1.png
+      - src/includes/art/PacManClosed.png
+      - src/includes/art/PacManLeft2.png
+      - src/includes/art/MsPacLeft1.png
+      - src/includes/art/MsPacClosed.png
+      - src/includes/art/MsPacLeft2.png
+      - src/includes/art/SuperPac1.png
+      - src/includes/art/SuperPacClosed.png
+      - src/includes/art/SuperPac2.png
+      - src/includes/art/BlinkyLeft1.png
+      - src/includes/art/BlinkyLeft2.png
+      - src/includes/art/PinkyLeft1.png     
+      - src/includes/art/PinkyLeft2.png
+      - src/includes/art/InkyLeft1.png
+      - src/includes/art/InkyLeft2.png
+      - src/includes/art/ClydeLeft1.png
+      - src/includes/art/ClydeLeft2.png
+      - src/includes/art/ScaredGhost1.png
+      - src/includes/art/ScaredGhost2.png
+    width-and-height: false
+    
+outputs:
+  - type: bin
+    converts:
+      - sprites
+    directory: src/includes/art

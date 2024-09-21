@@ -1,4 +1,4 @@
-PacGG
-PacMSX
 Arcade
-Ms. Pac-Man (SMS Ver.)
+src/includes/font/*.bin
+src/includes/art/*.bin
+src/includes/art/logos/*.bin

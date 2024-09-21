@@ -1,0 +1,21 @@
+palettes: 
+  - name: menupalette
+    images: 
+      - src/includes/menupalette.png
+      
+
+converts:
+  - name: miscart
+    palette: menupalette
+    bpp: 4
+    compress: zx0
+    images:
+      - src/includes/titlebg.png
+      - src/includes/logo.png
+    width-and-height: false
+    
+outputs:
+  - type: bin
+    converts:
+      - miscart
+    directory: src/includes

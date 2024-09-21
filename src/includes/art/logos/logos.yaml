@@ -1,0 +1,22 @@
+palettes: 
+  - name: menupalette
+    images: 
+      - src/includes/menupalette.png
+
+converts:
+  - name: logos
+    palette: menupalette
+    bpp: 4
+    compress: zx0
+    images:
+    - src/includes/art/logos/gg.png
+    - src/includes/art/logos/msx.png
+    - src/includes/art/logos/coleco.png
+    - src/includes/art/logos/mspac.png
+    - src/includes/art/logos/superpac.png
+    
+outputs:
+  - type: bin
+    converts:
+      - logos
+    directory: src/includes/art/logos

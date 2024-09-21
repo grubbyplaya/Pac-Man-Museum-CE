@@ -5,14 +5,15 @@
 #define VDP_HScroll	$D418
 #define VDP_VScroll	$D419
 #define TilemapCache	pixelShadow
-#define PatternGen	SegaVRAM+$2800
+#define PatternGen	SegaVRAM+$2000
 #define ColorTable	SegaVRAM+$3F80
 
 DrawScreen:
  .org	DrawScreen+$D20000
 	;do some partial redraw stuff
-	call	StoreRegisters
-	call.lil PartialRedraw
+	ld	a, (DrawSATTrig)
+	or	a
+	call.lil nz, PartialRedraw
 
 	;start drawing the tilemap
 	ld	a, (DrawTilemapTrig)
@@ -20,16 +21,15 @@ DrawScreen:
 	call.lil nz, DrawScreenMap
 	
 	;start drawing the SAT
-	call.lil DrawSAT
+	ld	a, (DrawSATTrig)
+	or	a
+	call.lil nz, DrawSAT
 
 	xor	a
 	ld	(DrawSATTrig), a
 	ld	(DrawTilemapTrig), a
-	call	RestoreRegisters
 	ret
-
 .ASSUME ADL=1
-
 
 DrawScreenMap:
 	xor	a
@@ -178,19 +178,6 @@ _:	ld	bc, 8
 	jr	nz, -_
 	jp	DrawScreenMap_Epilogue
 
-ClearTileCache:
-	ld	hl, TilemapCache
-	ld	de, TilemapCache + 1
-	ld	bc, $0300 - 1
-	ld	(hl), $00
-	ldir
-	ld	hl, SegaTileFlags
-	ld	de, SegaTileFlags + 1
-	ld	bc, $0100
-	ld	(hl), $00
-	ldir
-	ret.sis
-
 DrawSAT:	;draws all the sprites, from most to least significant
 	call	SaveSpriteBG	;save the stuff behind the sprite
 	ld	a, 1
@@ -209,7 +196,7 @@ _:	ld	h, (ix)
 	cp	h
 	jr	c, +_		;skip this sprite
 	ld	a, (ix+1)
-	cp	8
+	cp	9
 	jr	c, +_		;check if the same applies to Y coords
 
 	;draw the top-left corner of the sprite
@@ -275,7 +262,7 @@ SetSpritePTR:
 	ld	h, 8		;size of tile
 	mlt	hl
 	push	de
-	ld	de, SegaVRAM + $2000
+	ld	de, SegaVRAM + $1800
 	add	hl, de		;HL now points to the specified tile
 	pop	de		;DE has the tile's coordinates
 	ld	a, (ix+3)

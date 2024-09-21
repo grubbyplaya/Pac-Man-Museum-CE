@@ -1,53 +1,32 @@
 .ASSUME ADL=0
 
-#define Port_VDPAddress $BF
-#define Port_VDPStatus	$BF
-#define Port_VDPData	$BE
-#define Port_IOPort1	$DC
-#define Port_IOPort2	$DD
-#define Port_PSG	$7E
+.db $FF
+.ORG 0
 
-Museum_Header:
-	.db $FF, $82, "SUPER PAC-MAN (SORD VER.)",0
+.dl MuseumHeader
+.dl MuseumIcon
+.dl HeaderEnd
 
-.ORG $0000
+MuseumHeader:
+	.db $83, "Super Pac-Man (Sord Ver.)",0
+MuseumIcon:
+#import "src/includes/art/logos/superpac.bin"
+HeaderEnd:
 
-LABEL_0:
+.ORG $4018
+
+SetupGame:
 	ld hl, $C000
 	ld de, $C000 + 1
 	ld bc, $0FFF
 	ld (hl), $00
 	ldir
-	jp LABEL_3B
 
-GetDPADInput:
-	ld.lil a, (KbdG7)
-	ld c, a
-	xor a
-	bit 0, c
-	jr z, +_
-	set 3, a
-_:	bit 1, c
-	jr z, +_
-	set 2, a
-_:	bit 2, c
-	jr z, +_
-	set 0, a
-_:	bit 3, c
-	jr z, +_
-	set 1, a
-_:	push hl
-	ld l, a
-	ld h, $11
-	mlt hl
-	ld a, l
-	pop hl
-	ret
+	ld hl, HandleInterrupt
+	ld de, $0038
+	ld bc, 3
+	ldir
 
-LABEL_38:
-	jp LABEL_2089
-
-LABEL_3B:
 	ld.lil hl, DATA_401C + romStart
 	ld.lil de, SegaVRAM + $2800
 	ld bc, $0450
@@ -113,13 +92,46 @@ LABEL_2089:
 	ld.lil a, (KbdG6)
 	bit kbitClear, a
 	jp nz, $F000
-	call DrawScreen
+	ld a, (FrameCounter)
+	rrca
+	call nc, DrawScreen
+	push hl
+	ld hl, FrameCounter
+	inc (hl)
+	pop hl
 	ld a, 8
 	ld.lil (mpLcdIcr), a
 	ld a, $01
 	ld ($C330), a
 	ex af, af'
 	reti
+
+FrameCounter:
+	.db $00
+
+GetDPADInput:
+	ld.lil a, (KbdG7)
+	ld c, a
+	xor a
+	bit 0, c
+	jr z, +_
+	set 3, a
+_:	bit 1, c
+	jr z, +_
+	set 2, a
+_:	bit 2, c
+	jr z, +_
+	set 0, a
+_:	bit 3, c
+	jr z, +_
+	set 1, a
+_:	push hl
+	ld l, a
+	ld h, $11
+	mlt hl
+	ld a, l
+	pop hl
+	ret
 
 ; Data from 2094 to 20A3 (16 bytes)
 DATA_2094:
@@ -165,7 +177,7 @@ LABEL_20C9:
 	;check for mode, 1, 2, 5, or 6 keys
 	ld.lil a, (KbdG1)
 	bit kbitMode, a
-	jr nz, LABEL_20DF
+	jr nz, LABEL_20DF	;enable 1 player mode if keys 1, mode, or 5 are pressed
 	ld.lil a, (KbdG3)
 	bit kbit1, a
 	jr nz, LABEL_20DF
@@ -173,10 +185,11 @@ LABEL_20C9:
 	bit kbit5, a
 	jr nz, LABEL_20DF
 	bit kbit2, a
-	jr nz, LABEL_20DF
+	jr nz, LABEL_20DE
 	ld.lil a, (KbdG5)
 	bit kbit6, a
 	ret z
+LABEL_20DE:	;enable 2 player mode if keys 2 or 6 are pressed
 	inc h
 LABEL_20DF:
 	ld ($C332), hl
@@ -1006,8 +1019,7 @@ LABEL_2C73:
 	ld a, c
 	ld ($C33C), a
 	call LABEL_2CA3
-	rst $10
-	nop
+	call GetDPADInput
 	or e
 	ld c, a
 	ld a, ($C332)
@@ -1442,7 +1454,7 @@ LABEL_2FC2:
 	call LABEL_2DA4
 	ld a, ($C332)
 	and a
-	call nz, $2FF4	; Possibly invalid
+	call nz, LABEL_2FF8	
 	jp LABEL_2E0B
 
 LABEL_2FF8:
@@ -1452,12 +1464,14 @@ LABEL_2FF8:
 	ld hl, $C380
 	ld de, $C3C0
 	ld b, $40
-	ld c, (hl)
+_:	ld c, (hl)
 	ld a, (de)
 	ld (hl), a
 	ld a, c
 	ld (de), a
 	inc hl
+	inc de
+	djnz -_
 LABEL_300E:
 	ld hl, $0169
 	ld de, DATA_301F
@@ -1500,7 +1514,7 @@ DATA_3054:
 LABEL_305D:
 	ld hl, $0188
 	ld de, DATA_3066
-	jp LABEL_3ECC	; Possibly invalid
+	jp LABEL_3ECC	
 
 ; Data from 3066 to 3070 (11 bytes)
 DATA_3066:
@@ -1695,19 +1709,19 @@ LABEL_3228:
 	jr LABEL_3218
 
 LABEL_3233:	
-	call LABEL_324F	; Possibly invalid
+	call LABEL_324F	
 	cpl
 	and (hl)
 	ld (hl), a
-	call LABEL_3266	; Possibly invalid
+	call LABEL_3266	
 	add a, a
 	add a, $C8
 	bit 1, a
-	jp z, LABEL_30EF	; Possibly invalid
-	call LABEL_30F2	; Possibly invalid
+	jp z, LABEL_30EF	
+	call LABEL_30F2	
 	ld de, $001F
 	add hl, de
-	jp LABEL_30F2	; Possibly invalid
+	jp LABEL_30F2	
 
 LABEL_324F:
 	ld hl, $C380
@@ -1851,7 +1865,7 @@ LABEL_3364:
 	jp LABEL_30E8
 
 LABEL_3367:	
-	call LABEL_3374	; Possibly invalid
+	call LABEL_3374	
 	cpl
 	and (hl)
 	ld (hl), a
@@ -2038,8 +2052,8 @@ LABEL_34B5:
 	xor a
 	ld ($C60B), a
 	call LABEL_34F0
-	call LABEL_3544	; Possibly invalid
-	call LABEL_3540	; Possibly invalid
+	call LABEL_3544	
+	call LABEL_3540	
 	call LABEL_2D88
 	ret
 
@@ -2258,7 +2272,7 @@ LABEL_3649:
 	ret
 
 LABEL_3654:
-	call LABEL_368B	; Possibly invalid
+	call LABEL_368B	
 	ld a, ($C340)
 	ld ($C603), a
 	ld hl, $0078
@@ -2303,7 +2317,7 @@ DATA_369D:
 	inc h
 	.db $40
 LABEL_36A7:
-	call LABEL_3912	; Possibly invalid
+	call LABEL_3912	
 	ld hl, ($C448)
 	ld a, l
 	xor $02
@@ -2333,21 +2347,23 @@ LABEL_36D6:
 	ld hl, ($C448)
 	ld a, l
 	cp h
-	jr z, LABEL_36FF
-	call LABEL_370C	; Possibly invalid
-	jr c, LABEL_36FA
+	jr z, LABEL_36FA
+	call LABEL_370C	
+	jr c, LABEL_36F5
 LABEL_36F3:
 	ld a, ($C448)
 	ld ($C449), a
 	ret
 
-LABEL_36FA:
+LABEL_36F5:
 	ld a, ($C449)
 	and a
 	ret m
-LABEL_36FF:
-	call LABEL_370C	; Possibly invalid
+
+LABEL_36FA:
+	call LABEL_370C	
 	ret nc
+LABEL_36FF:
 	ld a, ($C449)
 	or $80
 	ld ($C449), a
@@ -2400,7 +2416,7 @@ LABEL_3759:
 
 ; Data from 3762 to 3768 (7 bytes)
 LABEL_375E:
-	call nc, LABEL_3769	; Possibly invalid
+	call nc, LABEL_3769	
 	ld a, ($C379)
 	rla
 	ld ($C379), a
@@ -2840,9 +2856,9 @@ LABEL_3A57:
 	inc a
 LABEL_3A6A:	
 	ld ($C446), a
-	call LABEL_3A81	; Possibly invalid
+	call LABEL_3A81	
 	call LABEL_3AC5
-	call LABEL_2DA4	; Possibly invalid
+	call LABEL_2DA4	
 	xor a
 	ld ($C60C), a
 	ld hl, LABEL_399E
@@ -3067,7 +3083,7 @@ LABEL_3BC9:
 
 ; 4th entry of Jump Table from 3B9F (indexed by $C447)
 LABEL_3BDA:
-	call LABEL_3D5D	; Possibly invalid
+	call LABEL_3D5D	
 	cp $21
 	jr nc, LABEL_3BE6
 	call LABEL_20A4
@@ -3115,7 +3131,7 @@ LABEL_3C09:
 	ld a, h
 	sub (iy+0)
 	rr e
-	jp p, LABEL_3C12	; Possibly invalid
+	jp p, LABEL_3C12	
 	neg
 LABEL_3C12:	
 	ld d, a
@@ -3209,7 +3225,7 @@ LABEL_3CAA:
 	call LABEL_3D5D
 	cp $05
 	ret nc
-	call LABEL_2CF6	; Possibly invalid
+	call LABEL_2CF6	
 	ld hl, ($C500)
 	ld ($C400), hl
 	ld hl, ($CF80)
@@ -3225,7 +3241,7 @@ LABEL_3CCB:
 	call LABEL_368B
 	ld a, ($C340)
 	ld ($C605), a
-	call LABEL_2CF6	; Possibly invalid
+	call LABEL_2CF6	
 	push iy
 	pop de
 	ld a, e
@@ -3358,9 +3374,9 @@ LABEL_3DAD:
 	ret c
 	ld a, ($C399)
 	and a
-	jr nz, LABEL_3D.db
+	jr nz, LABEL_3DDB
 	ld (hl), a
-LABEL_3D.db:
+LABEL_3DDB:
 	inc a
 	cp $FF
 	jr z, LABEL_3DE3
@@ -3601,7 +3617,7 @@ LABEL_3F16:
 LABEL_3F1C:
 	call LABEL_3F6D
 LABEL_3F1F:
-	ld a, ($C395)
+	ld a, ($C395)	
 	and $18
 	rrca
 	rrca
@@ -3611,7 +3627,30 @@ LABEL_3F1F:
 	ld b, 0
 	add hl, bc
 	ld a, (hl)
-	ld hl, ClearColors
+	ld c, a
+	ld hl, $C32A
+	cp (hl)
+	jr z, +_
+
+	push af
+	push bc
+	ld a, (hl)
+	rrca \ rrca \ rrca
+	ld hl, MSXPalette
+	ld c, a
+	ld b, 0
+	add hl, bc
+	ld hl, (hl)
+	ex de, hl
+	ld.lil hl, CRAM
+	add.lil hl, bc
+	ld.lil (hl), e
+	inc l
+	ld.lil (hl), d
+	pop bc
+	pop af
+	
+_:	ld hl, MSXPalette
 	add hl, bc
 	add hl, bc
 	ld hl, (hl)
@@ -3650,6 +3689,7 @@ LABEL_3F58:
 	ld.lil hl, CRAM
 	ld de, $FFFF
 	ld a, ($C395)
+ResetWhiteColor:
 	and $18
 	rrca
 	rrca
@@ -3669,8 +3709,9 @@ LABEL_3F58:
 DATA_3F69:
 	.db $05, $03, $0E, $0B
 
-ClearColors:
-	.dw $C1DD, $BB2F, $6739, $EF30
+MSXPalette:
+	.dw $0000, $0000, $A2C9, $BB2F, $AD5B, $C1DD, $D96A, $337D
+	.dw $ED8B, $7E2F, $670B, $EF30, $1E88, $D996, $6739, $FFFF
 
 LABEL_3F6D:
 	ld hl, $C393
@@ -3758,12 +3799,15 @@ DATA_3FCA:
 
 ; Data from 401C to 4473 (1112 bytes)
 DATA_401C:
-	#import "PowerPac/font.bin"
+	#import "src/PowerPac/font.bin"
 
 ; Data from 4474 to 483F (972 bytes)
 DATA_4474:
-	#import "PowerPac/colors.bin"
+	#import "src/PowerPac/colors.bin"
 
-#include "PowerPac/screen_drawing_routines.asm"
+HandleInterrupt:
+	jp LABEL_2089
 
-#include "PowerPac/ti_equates.asm"
+#include "src/PowerPac/screen_drawing_routines.asm"
+
+#include "src/PowerPac/ti_equates.asm"

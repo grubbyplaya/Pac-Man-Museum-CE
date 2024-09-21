@@ -5,13 +5,15 @@
 #define VDP_HScroll	$D418
 #define VDP_VScroll	$D419
 #define TilemapCache	pixelShadow
-#define PatternGen	SegaVRAM+$2800
-#define ColorTable	SegaVRAM+$3F80
+#define PatternGen	SegaVRAM
+#define ColorTable	SegaVRAM+$2000
 
 DrawScreen:
  .org	DrawScreen+$D20000
 	;do some partial redraw stuff
 	call	StoreRegisters
+	ld	a, (DrawSATTrig)
+	or	a
 	call.lil PartialRedraw
 
 	;start drawing the tilemap
@@ -20,6 +22,8 @@ DrawScreen:
 	call.lil nz, DrawScreenMap
 	
 	;start drawing the SAT
+	ld	a, (DrawSATTrig)
+	or	a
 	call.lil DrawSAT
 
 	xor	a
@@ -27,9 +31,7 @@ DrawScreen:
 	ld	(DrawTilemapTrig), a
 	call	RestoreRegisters
 	ret
-
 .ASSUME ADL=1
-
 
 DrawScreenMap:
 	xor	a
@@ -149,7 +151,7 @@ GetTileCoordinates:
 	mlt	de		;DE has the X coordinate	
 	add	hl, de
 
-	ld	de, VRAM+$1E20
+	ld	de, VRAM+$1E18
 	add	hl, de
 	push	hl		;DE has the tile's coordinate
 	exx
@@ -178,19 +180,6 @@ _:	ld	bc, 8
 	jr	nz, -_
 	jp	DrawScreenMap_Epilogue
 
-ClearTileCache:
-	ld	hl, TilemapCache
-	ld	de, TilemapCache + 1
-	ld	bc, $0300 - 1
-	ld	(hl), $00
-	ldir
-	ld	hl, SegaTileFlags
-	ld	de, SegaTileFlags + 1
-	ld	bc, $0100
-	ld	(hl), $00
-	ldir
-	ret.sis
-
 DrawSAT:	;draws all the sprites, from most to least significant
 	call	SaveSpriteBG	;save the stuff behind the sprite
 	ld	a, 1
@@ -211,9 +200,9 @@ _:	ld	h, (ix)
 	ld	a, (ix+1)
 	cp	8
 	jr	c, +_		;check if the same applies to Y coords
+	cp	$F8
+	jr	nc, +_
 
-	;draw the top-left corner of the sprite
-	ld	a, (ix+1)
 	call	SetSpriteCoords	;set sprite coordinates
 	ex	de, hl		;HL now points to the tile's top-left corner
 	ld	l, (ix+2)
@@ -267,7 +256,7 @@ SetSpriteCoords:
 	add	hl, de		;move into the letterbox
 	ld	e, a
 	add	hl, de		;DE has the tile's coordinates
-	ld	de, VRAM+$1F40	;first scanline to be updated
+	ld	de, VRAM+$1F38	;first scanline to be updated
 	add	hl, de
 	ret
 
@@ -275,7 +264,7 @@ SetSpritePTR:
 	ld	h, 8		;size of tile
 	mlt	hl
 	push	de
-	ld	de, SegaVRAM + $2000
+	ld	de, SegaVRAM + $3800
 	add	hl, de		;HL now points to the specified tile
 	pop	de		;DE has the tile's coordinates
 	ld	a, (ix+3)
