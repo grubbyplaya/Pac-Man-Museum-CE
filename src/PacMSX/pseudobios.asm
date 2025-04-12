@@ -1,12 +1,12 @@
-;fill-in routines for the MSX BIOS, since it's not worth reimplementing the whole thing.
+; fill-in routines for the MSX BIOS, since it's not worth reimplementing the whole thing.
 
 .ASSUME ADL=0
-SNSMAT:	;basically GetKey for MSX
+SNSMAT:	; basically GetKey for MSX
 	cp	7
 	jr	z, SNSMAT_7
 	xor	a
 
-	;check for arrow keys
+	; check for arrow keys
 	push	hl
 	ld.lil	hl, KbdG7
 	ld.lil	c, (hl)

@@ -1,24 +1,44 @@
 #define appVarObj		$15
-#define lcdBpp8			$27
+
+; LCD control stuff
+#define lcdEn			$01
+#define lcdTft			$20
+#define lcdPwr			$800
+#define lcdBpp4			%0100 | lcdTft | lcdEn | lcdPwr
+#define lcdBpp8			%0110 | lcdTft | lcdEn | lcdPwr
+#define lcdBgr			$100
+#define lcdBepo			$400
+#define lcdIntFront		$4000
 #define lcdHeight		240
 #define lcdWidth		320
 #define lcdNormalMode		$92D
+
+; OS routines
+#define boot_InitializeHardware	$000384
+#define GetDate			$0005A8
 #define	CpHLDE			$02013C
 #define Mov9ToOP1		$020320
 #define ChkFindSym		$02050C
 #define ClrLCDFull		$020808
 #define Arc_Unarc		$021448
+#define GetAnsData		$021E70
+#define RealToInt		$021EF4
+
 #define ramStart		$D00000
 #define tempSP			$D0053F
 #define ScrapMem		$D02AD7
+
+; safeRAM
+#define pixelShadow		$D03200
 #define cmdPixelShadow		$D07396
 #define plotSScreen		$D09466
 #define saveSScreen		$D0EA1F
-#define pixelShadow		$D031F6
-#define SegaTileCache		pixelShadow
+
 #define VRAM 			$D40000
 #define VRAMEnd			VRAM+((320*240)*2)
+
 #define mpLcdTiming1		$E30004
+#define mpLcdMBASE		$E30010
 #define mpLcdCtrl		$E30018
 #define mpLcdImsc		$E3001C
 #define mpLcdRis		$E30020
@@ -26,20 +46,27 @@
 #define mpLcdPalette		$E30200
 #define CursorImage		$E30800
 
-#define RenderedScreenMap	VRAM + (320*240)		;256*224 screen framebuffer
-#define SegaVRAM		RenderedScreenMap + (256*224)	;Master System VDP RAM
+#define mpSpiRange		$F80000
+#define spiCtrl1		$04
+#define spiCtrl2		$08
+#define spiIntCtrl		$10
+
+#define ScreenPTR		pixelShadow
+#define SegaVRAM		ScreenPTR + (256*192)		; Master System VDP RAM
 #define ScreenMap		SegaVRAM + $3800
 #define SAT			SegaVRAM + $3F00
-#define SegaTileFlags		SegaVRAM + $4000		;flags for drawing tilemap
-#define CRAM			mpLcdPalette
-#define DrawTilemapTrig			$D4C0
-#define DrawSATTrig			$D4C1
+#define SegaTileFlags		SegaVRAM + $4000		; flags for drawing tilemap
 
-#define romStart		$D20000	;game ROM, not TI ROM
+#define CRAM			mpLcdPalette
+#define DrawTilemapTrig		$DFC0
+#define DrawSATTrig		$DFC1
+
+#define romStart		VRAM				; game ROM, not TI ROM
+#define RenderedScreenMap	romStart + (64*1024)		; 256*224 screen framebuffer
 
 
 kbdG1		= $F50012
-;----------------------------
+; ----------------------------
 kbdGraph	= 00000001b
 kbdTrace	= 00000010b
 kbdZoom		= 00000100b
@@ -59,7 +86,7 @@ kbitMode	= 06
 kbitDel		= 07
 
 kbdG2		= $F50014
-;----------------------------
+; ----------------------------
 kbdStore	= 00000010b
 kbdLn		= 00000100b
 kbdLog		= 00001000b
@@ -77,7 +104,7 @@ kbitMath	= 06
 kbitAlpha	= 07
 
 kbdG3		= $F50016
-;----------------------------
+; ----------------------------
 kbd0		= 00000001b
 kbd1		= 00000010b
 kbd4		= 00000100b
@@ -97,7 +124,7 @@ kbitApps	= 06
 kbitGraphVar	= 07
 
 kbdG4		= $F50018
-;----------------------------
+; ----------------------------
 kbdDecPnt	= 00000001b
 kbd2		= 00000010b
 kbd5		= 00000100b
@@ -117,7 +144,7 @@ kbitPgrm	= 06
 kbitStat	= 07
 
 kbdG5		= $F5001A
-;----------------------------
+; ----------------------------
 kbdCs		= 00000001b
 kbd3		= 00000010b
 kbd6		= 00000100b
@@ -135,7 +162,7 @@ kbitTan		= 05
 kbitVars	= 06
 
 kbdG6		= $F5001C
-;----------------------------
+; ----------------------------
 kbdEnter	= 00000001b
 kbdAdd		= 00000010b
 kbdSub		= 00000100b
@@ -153,7 +180,7 @@ kbitPower	= 05
 kbitClear	= 06
 
 kbdG7		= $F5001E
-;----------------------------
+; ----------------------------
 kbdDown		= 00000001b
 kbdLeft		= 00000010b
 kbdRight	= 00000100b
@@ -170,3 +197,9 @@ kbitUp		= 03
 	ld	de, VRAM + (lcdWidth*Y/2) + (X/2)
 	call	DrawString
 #endmacro
+
+#macro SpriteDim(Height, Width)
+	ld	h, Height
+	ld	l, Width/2
+	ld	bc, (lcdWidth-Width)/2
+#endmacroy

@@ -1,4 +1,21 @@
-#define AnimParams 	PixelShadow	;11 byte chunks
+#define AnimParams 	PixelShadow	; 11 byte chunks
+
+; animation structure:
+; IY+0 - IY+1:  current coords  (X, Y)
+; IY+2 - IY+3:  endpoint coords (X, Y)
+; IY+4:         no. of frames to hold current sprite
+; IY+5 - IY+7:  PTR to sprite animation type
+; IY+8 - IY+10: PTR to sprite image table
+; IY+11:        sprite size boolean
+
+#define CurrentX	0
+#define CurrentY	1
+#define FinalX		2
+#define FinalY		3
+#define AnimTiming	4
+#define AnimPTR		5
+#define SpritePTR	8
+#define DoubleSprite	11
 
 SetupAnims:
 	ld	a, (CurrentAnim)
@@ -10,17 +27,18 @@ SetupAnims:
 	ld	ix, (hl)
 	ld	iy, AnimParams
 
-	;load sprite X and Y coords
+	; load sprite X and Y coords
 	xor	a
 _:	push	af
 	push	ix
-	ld	ix, (ix)	;IX = sprite animation table
+	ld	ix, (ix)	; IX = sprite animation table
 
+	; copy the start and endpoint into the object
 	ld	l, a
 	ld	h, 4
 	mlt	hl
 	ld	de, Sprite1Pos
-	add	hl, de		;HL = sprite start and end coords
+	add	hl, de		; HL = sprite start and end coords
 	lea	de, iy
 	ld	bc, 4
 	ldir
@@ -29,16 +47,16 @@ _:	push	af
 	ld	(TitleLoop+1), a
 
 	ld	hl, (ix)
-	ld	(iy+5), hl	;IY+5 = PTR to sprite animation type
+	ld	(iy+AnimPTR), hl	; IY+5 = PTR to sprite animation type
 
 	ld	a, (ix+3)
-	ld	(iy+11), a	;IY+11 = sprite magnification amount
+	ld	(iy+DoubleSprite), a	; IY+11 = sprite magnification amount
 
 	lea	ix, ix+4
-	ld	(iy+8), ix	;IX+8 = PTR to sprite image table
+	ld	(iy+SpritePTR), ix	; IX+8 = PTR to sprite image table
 
 	ld	a, (hl)
-	ld	(iy+4), a
+	ld	(iy+AnimTiming), a	; IX+4 = animation timing
 	pop	ix
 	lea	ix, ix+3
 	lea	iy, iy+12
@@ -55,21 +73,27 @@ _:	push	af
 _:	pop	af
 	ret
 
+TempSpritePTR:
+	.dl 0
 
 CheckSpriteBounds:
-	ld	a, (iy)
-	cp	lcdWidth-15/2		;is the sprite out of bounds?
+	ld	(TempSpritePTR), hl	; save HL while we check params
+	SpriteDim(16, 16)
+	; if DoubleSprite is set, double the size of the sprite
+	ld	a, (iy+DoubleSprite)
+	or	a
+	jr	z, +_
+	call	AdjustSpriteOffset
+_:	ld	a, (iy)
+	cp	c			; is the sprite out of bounds?
 	ret	nc
 	cp	2
 	jp	c, EraseSprite
-	ld	a, (iy+11)
-	or	a
-	jp	nz, DrawSprite_32
 	jp	DrawSprite
 
 AnimStep:
-	;calc PTR to sprite image
-	ld	ix, (iy+5)
+	; calc PTR to sprite image
+	ld	ix, (iy+AnimPTR)
 
 	ld	a, ixl
 	or	ixh
@@ -79,22 +103,22 @@ AnimStep:
 	ld	hl, (hl)
 	ex	de, hl
 
-	;calc sprite position
-	ld	l, (iy+1)
+	; calc sprite position
+	ld	l, (iy+CurrentY)
 	ld	h, lcdWidth/2
 	mlt	hl
 	ld	bc, 0
-	ld	c, (iy)
+	ld	c, (iy+CurrentX)
 	add	hl, bc
 	ld	bc, VRAM
 	add	hl, bc
 	ex	de, hl
 	call	CheckSpriteBounds
-	;FALL THROUGH
+	; FALL THROUGH
 
 AnimTick_CheckTick:
-	ld	a, (iy)
-	cp	(iy+2)
+	ld	a, (iy+CurrentX)
+	cp	(iy+FinalX)
 	ret	z
 	jr	c, IncSpriteX
 DecSpriteX:
@@ -104,36 +128,36 @@ IncSpriteX:
 	inc	(iy)
 
 UpdateAnimTick:
-	dec	(iy+4)
+	dec	(iy+AnimTiming)
 	ret	nz
 
-	ld	ix, (iy+5)
+	ld	ix, (iy+AnimPTR)
 	lea	ix, ix+2
-	ld	(iy+5), ix
+	ld	(iy+AnimPTR), ix
 
-	ld	a, (ix)
-	ld	(iy+4), a
+	ld	a, (ix+CurrentX)
+	ld	(iy+AnimTiming), a
 	cp	$FE
 	ret	nz
 AnimTick_LoopBack:
-	ld	b, (ix+1)
+	ld	b, (ix+CurrentY)
 	dec	b
-	ld	ix, (iy+5)
+	ld	ix, (iy+AnimPTR)
 _:	lea	ix, ix-2
 	djnz	-_
-	ld	(iy+5), ix
-	ld	a, (ix)
-	ld	(iy+4), a
+	ld	(iy+AnimPTR), ix
+	ld	a, (ix+CurrentX)
+	ld	(iy+AnimTiming), a
 	inc	a
 	ret
 
 
 CalcFramePTR:
-	ld	l, (ix+1)
+	ld	l, (ix+CurrentY)
 	dec	l
 	ld	h, 3
 	mlt	hl
-	ld	de, (iy+8)
+	ld	de, (iy+SpritePTR)
 	add	hl, de
 	ret
 
@@ -145,6 +169,8 @@ TotalAnimations:
 	.dl Anim_PacMan
 	.dl Anim_MsPacMan
 	.dl Anim_SuperPacMan
+	.dl Anim_Sonic
+	.dl Anim_NamcoArcade
 
 Anim_Default:
 	.dl PacManLeftAnim
@@ -176,4 +202,20 @@ Anim_SuperPacMan:
 	.dl PinkyLeftAnim
 	.dl BlinkyLeftAnim
 	.dl SuperPacManLeftAnim
+	.dl 0
+
+Anim_NamcoArcade:
+	.dl PacManLeftAnim
+	.dl PookaAnim
+	.dl GalaxAnim
+	.dl MappyAnim
+	.dl 0
+
+Anim_Sonic:
+	.dl SonicAnim
+	.dl BlankAnim
+	.dl BlinkyLeftAnim
+	.dl PinkyLeftAnim
+	.dl InkyLeftAnim
+	.dl ClydeLeftAnim
 	.dl 0

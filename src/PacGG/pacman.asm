@@ -30,9 +30,9 @@
 .dl HeaderEnd
 
 MuseumHeader:
-	.db $80, "Pac-Man (GG Ver.)",0
+	.db $85, "Pac-Man (GG Ver.)",0
 MuseumIcon:
-#import "src/includes/art/logos/gg.bin"
+#import "src/includes/gfx/logos/gg.bin"
 HeaderEnd:
 .ORG $0000
 
@@ -122,7 +122,7 @@ HandleInterrupt:
 	ld	hl, (VDP_HScroll)
 	ld	ix, DrawTilemapTrig
 	ld	a, ($C118)
-	add	a, b			;apply adjustment value
+	add	a, b			; apply adjustment value
 	cp	l
 	jr	z, +_
 	set	1, (ix)
@@ -130,49 +130,11 @@ _:	ld	(VDP_HScroll), a
 	
 	; Set the background Y-scroll value (write to register VDP(9))
 	ld	a, ($C119)
-	add	a, c			;apply adjustment value
+	add	a, c			; apply adjustment value
 	cp	h
 	jr	z, +_
 	set	1, (ix)
 _:	ld	(VDP_VScroll), a
-
-	ld hl, $C4B7
-
-UpdateTilesLoop:	
-	ld a, (hl)
-	and a
-	jr z, +_
-
-	push af
-	ld a, 3
-	ld (DrawTilemapTrig), a
-	pop af
-
-	ld (hl), $00
-	inc hl
-	inc de
-
-	push af
-	ld e, (hl)
-	inc hl
-	ld d, (hl)
-	ld a, d
-	cp $C0			;check for palette update
-	jp z, UpdatePalette
-
-	res 6, d
-	ld.lil ix, SegaVRAM
-	add.lil ix, de
-	lea.lil de, ix
-	inc hl
-
-	pop af
-	ld.lil bc, romStart
-	add.lil hl, bc
-	ld bc, 0
-	ld c, a
-	ldir.lil
-	jr UpdateTilesLoop
 
 _:	call LABEL_B5EA
 	ld hl, $C101
@@ -182,9 +144,9 @@ _:	call LABEL_B5EA
 	ld c, a
 	ld.lil a, (KbdG7)
 	rla
-	bit 4, a			;is the up key pressed?
-	jr z, +_			;jump if it isn't
-	xor $11			;move the flag to bit 0			
+	bit 4, a			; is the up key pressed?
+	jr z, +_			; jump if it isn't
+	xor $11			; move the flag to bit 0			
 _:	or c
 	ld c, a
 	xor (hl)
@@ -214,14 +176,9 @@ _:	or c
 	bit kbitClear, a
 	call nz, $F000
 
-	ld hl, FrameCounter
-	inc (hl)
-	ld a, (hl)
-	rra
-	call nc, DrawScreenPTR
 	ld.lil	hl, $E30028
 	ld.lil	(hl), $08
-	ld.lil	sp, $D1A745		;reset SPL
+	ld.lil	sp, $D1A745		; reset SPL
 	pop iy
 	pop ix
 	pop hl
@@ -235,13 +192,14 @@ FrameCounter:
 .db $00
 
 LABEL_F0:
+	call ClearTileCache
 	ld a, $C9
 	ld ($FFFF), a
 	ld sp, $DFF0
 
-	;load DrawScreen
+	; load DrawScreen
 	ld	hl, DrawScreen
-	ld	de, $E000
+	ld	de, DrawScreenPTR
 	ld	bc, $0600
 	ldir
 
@@ -252,9 +210,9 @@ LABEL_F0:
 	ldir
 
 	ld a, $FF
-	;ld (Port_SerialRaw), a
+	; ld (Port_SerialRaw), a
 	ld a, $38
-	;ld (Port_SerialStatus), a
+	; ld (Port_SerialStatus), a
 
 	ld.lil hl, SegaVRAM
 	ld.lil de, SegaVRAM+1
@@ -296,11 +254,19 @@ LABEL_F0:
 	ld a, $01
 	ld ($C100), a
 	ld a, (Port_SerialReceive)
-	ei
 LABEL_1AB:
-	ld a, ($C100)
+	di
+	call UpdateTiles
+	ld hl, FrameCounter
+	inc (hl)
+	ld a, (hl)
+	rra
+	call nc, DrawScreenPTR
+
+	ei
+_:	ld a, ($C100)
 	and a
-	jr nz, LABEL_1AB
+	jr nz, -_
 	inc a
 	ld ($C100), a
 	call LABEL_81D4
@@ -1487,9 +1453,14 @@ LABEL_7DCE:
 	ld ($C198), a
 	jp LABEL_9A6D
 
-; Data from 7E0B to 7E1D (19 bytes)
-.db $3A, $02, $C1, $E6, $10, $CA, $6D, $9A, $3A, $47, $C1, $EE, $01, $32, $47, $C1
-.db $C3, $6D, $9A
+LABEL_7E0B:	
+	ld a, ($C102)
+	and $10
+	jp z, LABEL_9A6D
+	ld a, ($C147)
+	xor $01
+	ld ($C147), a
+	jp LABEL_9A6D
 
 LABEL_7E1E:
 	ld b, $32
@@ -2005,26 +1976,26 @@ _:
 	xor a
 	sbc hl, de
 
-	;divide the address pointer by the tile size
+	; divide the address pointer by the tile size
 	srl	h
-	rr	l		;hl /= 2
+	rr	l		; hl /= 2
 	srl	h
-	rr	l		;hl /= 2
+	rr	l		; hl /= 2
 	srl	h
-	rr	l		;hl /= 2
+	rr	l		; hl /= 2
 	srl	h
-	rr	l		;hl /= 2
+	rr	l		; hl /= 2
 	srl	h
-	rr	l		;hl /= 2
+	rr	l		; hl /= 2
 
-	;divide HL by 13
+	; divide HL by 13
 	ld de, $000D
 	or a
 _:	inc a
 	sbc hl, de
 	jr nc, -_
 	dec a
-	add hl, de	;L = remainder, A = rounded quotient
+	add hl, de	; L = remainder, A = rounded quotient
 
 	ld h, a
 	ld e, l
@@ -2033,7 +2004,7 @@ _:	inc a
 	add hl, de
 	add hl, de
 	ld.lil de, SegaVRAM+$3801
-	add.lil hl, de	;HL = tile attribute
+	add.lil hl, de	; HL = tile attribute
 	res.lil 7, (hl)
 	ret
 
@@ -2192,7 +2163,7 @@ LABEL_823B:
 	cp b
 	ret z
 	ld a, b
-	;ld (Port_SerialSend), a
+	; ld (Port_SerialSend), a
 	ret
 
 _:
@@ -2218,7 +2189,7 @@ _:
 	ld l, a
 	ld a, (hl)
 _:
-	;ld (Port_SerialSend), a
+	; ld (Port_SerialSend), a
 	ld a, ($C136)
 	cp $01
 	jr nz, +_
@@ -2250,7 +2221,7 @@ _:
 	ld a, c
 	ld ($C136), a
 _:
-	;ld (Port_SerialSend), a
+	; ld (Port_SerialSend), a
 	ret
 
 LABEL_82A1:
@@ -2373,7 +2344,7 @@ _:
 	ld a, $01
 	ld ($C11F), a
 	ld a, $03
-	;ld (Port_SerialSend), a
+	; ld (Port_SerialSend), a
 	ld de, LABEL_7B44
 _:
 	ld ($C135), a
@@ -2688,7 +2659,7 @@ LABEL_856E:
 _:	push de
 	ld.lil de, romStart
 	add.lil hl, de
-	pop	de
+	pop de
 
 	ld.lil ix, SegaVRAM
 	add.lil ix, de
@@ -2824,7 +2795,7 @@ _:
 	ld ($C178), a
 	jr LABEL_85E5
 
-_:	ld hl, $8634
+_:	ld hl, DATA_8634
 	ld a, ($C153)
 	ld c, $00
 _:
@@ -2843,10 +2814,11 @@ _:
 	jr LABEL_85E5
 
 ; Data from 8634 to 8638 (5 bytes)
+DATA_8634:
 .db $80, $60, $40, $20, $00
 
 LABEL_8639:
-	ld hl, $8649
+	ld hl, DATA_864A - 1
 	ld b, a
 	xor a
 _:
@@ -2862,6 +2834,7 @@ _:
 	ret
 
 ; Data from 864A to 8651 (8 bytes)
+DATA_864A:
 .db $01, $02, $04, $08, $16, $32, $64, $28
 
 ; Data from 8652 to 8661 (16 bytes)
@@ -3720,6 +3693,7 @@ LABEL_8C4A:
 	ld hl, $C4F7
 	ld de, $3800
 	call LABEL_856E
+	call ClearTileCache
 	ld a, $2C
 	ld ($C118), a
 	ret
@@ -3859,25 +3833,32 @@ _:
 	call LABEL_8AF2
 	ld.lil hl, romStart + $C222
 	ld.lil de, SegaVRAM + $399C
-	ld b, $06
 
+	ld b, $06
 _:	ld a, (hl)
 	dec hl
 	ld.lil (de), a
 	xor a
+	inc e
 	ld.lil (de), a
+	inc e
 	djnz -_
+
 	ld hl, $C127
 	call LABEL_8AF2
 	ld.lil de, SegaVRAM + $38DC
 	ld hl, $C222
+
 	ld b, $06
 _:	ld a, (hl)
 	dec hl
 	ld.lil (de), a
 	xor a
+	inc e
 	ld.lil (de), a
+	inc e
 	djnz -_
+
 	ld a, ($C11F)
 	and a
 	jr nz, +++++_
@@ -9562,6 +9543,45 @@ _:
 	ld ($C120), a
 	ret
 
+UpdateTiles:
+	ld hl, $C4B7
+UpdateTilesLoop:	
+	ld a, (hl)
+	and a
+	ret z
+
+	push af
+	ld a, 3
+	ld (DrawTilemapTrig), a
+	pop af
+
+	ld (hl), $00
+	inc hl
+	inc de
+
+	push af
+	ld e, (hl)
+	inc hl
+	ld d, (hl)
+	ld a, d
+	cp $C0			; check for palette update
+	jp z, UpdatePalette
+
+	res 6, d
+	ld.lil ix, SegaVRAM
+	add.lil ix, de
+	lea.lil de, ix
+	inc hl
+
+	pop af
+	ld.lil bc, romStart
+	add.lil hl, bc
+	ld bc, 0
+	ld c, a
+	ldir.lil
+	jr UpdateTilesLoop
+
+
 UpdatePalette:
 	ld.lil ix, CRAM
 	ld d, 0
@@ -9576,7 +9596,17 @@ UpdatePalette:
 	ld c, a
 	ldir.lil
 	jp UpdateTilesLoop
+
+ClearTileCache:
+	ld.lil hl, SegaTileFlags
+	ld.lil de, SegaTileFlags+1
+	ld bc, $01C0
+	ld.lil (hl), $00
+	ldir.lil
+	ret
 	
-#include "src/PacGG/ti_equates.asm"
+#define SegaTileCache	RenderedScreenMap + (256*224)
+
+#include "src/includes/ti_equates.asm"
 
 #include "src/PacGG/screen_drawing_routines.asm"

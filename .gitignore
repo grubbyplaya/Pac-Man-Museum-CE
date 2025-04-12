@@ -1,4 +1,10 @@
 Arcade
-src/includes/font/*.bin
-src/includes/art/*.bin
-src/includes/art/logos/*.bin
+src/includes/gfx/sprites/*.bin
+src/includes/gfx/logos/*.bin
+src/includes/gfx/font/*.bin
+src/includes/gfx/misc/*.bin
+*.exe
+*.lst
+gfx.txt
+src/usb_routines.asm
+/src/PacAttack

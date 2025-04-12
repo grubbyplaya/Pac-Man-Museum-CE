@@ -1,6 +1,9 @@
 .ASSUME ADL=0
 
 #define ExitGame $F000
+#define PatternGen	SegaVRAM + $2000
+#define ColorTable	SegaVRAM + $3F80
+#define SpritePTR	SegaVRAM + $1800
 
 .db $FF
 .ORG 0
@@ -12,7 +15,7 @@
 MuseumHeader:
 	.db $83, "Pac-Man (MSX Ver.)",0
 MuseumIcon:
-#import "src/includes/art/logos/msx.bin"
+#import "src/includes/gfx/logos/msx.bin"
 HeaderEnd:
 .ORG	$4018
 
@@ -27,10 +30,11 @@ LABEL_18:
 	ld de, $E000 + 1
 	ld bc, $0FFF
 	ldir
+
 	ld sp, $F000
 	ld a, $07
 	ld e, $BF
-	;call BIOS_0093
+	; call BIOS_0093
 	ld hl, DATA_1E6C
 	ld bc, $0800
 LABEL_35:
@@ -202,11 +206,12 @@ LABEL_198:
 	ld ($FD9B), hl
 	ld a, $07
 	ld e, $B8
-	;call BIOS_0093
+	; call BIOS_0093
 	ld a, $0F
 	ld e, $8F
-	;call BIOS_0093
+	; call BIOS_0093
 LABEL_1B5:
+	di
 	ei
 LABEL_1BB:
 	jp LABEL_1BB
@@ -215,6 +220,7 @@ LABEL_1BE:
 	ld a, (FrameCounter)
 	rrca
 	call nc, DrawScreen
+
 	ld sp, $F000
 	call READVDP
 	ld hl, FrameCounter
@@ -246,7 +252,7 @@ LABEL_1F1:
 	ld e, $00
 	ld b, $03
 LABEL_1FD:
-	;call BIOS_0093
+	; call BIOS_0093
 	inc a
 	djnz LABEL_1FD
 	ld.lil	hl, mpLcdIcr
@@ -2278,11 +2284,11 @@ LABEL_11C1:
 	ld b, $03
 LABEL_11C7:
 	ld e, (hl)
-	;call BIOS_0093
+	; call BIOS_0093
 	inc l
 	inc a
 	ld e, (hl)
-	;call BIOS_0093
+	; call BIOS_0093
 	inc l
 	inc l
 	inc a
@@ -2292,7 +2298,7 @@ LABEL_11C7:
 	ld b, $03
 LABEL_11DD:
 	ld e, (hl)
-	;call BIOS_0093
+	; call BIOS_0093
 	inc l
 	inc l
 	inc l
@@ -4438,5 +4444,10 @@ DATA_26D7:
 .db $FF
 
 #include "src/PacMSX/pseudobios.asm"
-#include "src/PacMSX/screen_drawing_routines.asm"
-#include "src/PacMSX/ti_equates.asm"
+
+#define ScreenMap	SegaVRAM + $3C00
+#define SAT		SegaVRAM + $3F00
+
+#include "src/includes/renderer_MSX.asm"
+
+#include "src/includes/ti_equates.asm"

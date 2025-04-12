@@ -2,7 +2,7 @@
 #define appVarObj		$15
 #define lcdBpp8			$27
 #define lcdHeight		240
-#define lcdWidth		320
+#define lcdWidth		256
 #define lcdNormalMode		$92D
 #define	CpHLDE			$02013C
 #define Mov9ToOP1		$020320
@@ -26,20 +26,21 @@
 #define mpLcdIcr		$E30028
 #define mpLcdPalette		$E30200
 
-#define RenderedScreenMap	VRAM + (320*240)		;256*224 screen framebuffer
-#define SegaVRAM		RenderedScreenMap + (256*224)	;Master System VDP RAM
+#define ScreenPTR		VRAM
+#define RenderedScreenMap	ScreenPTR + (320*240)		; 256*224 screen framebuffer
+#define SegaVRAM		RenderedScreenMap + (256*224)	; Master System VDP RAM
 #define ScreenMap		SegaVRAM + $3800
 #define SAT			SegaVRAM + $3F00
-#define SegaTileFlags		SegaVRAM + $4000		;flags for drawing tilemap
+#define SegaTileFlags		SegaVRAM + $4000		; flags for drawing tilemap
 #define CRAM			mpLcdPalette
-#define DrawTilemapTrig			$D4C0
-#define DrawSATTrig			$D4C1
+#define DrawTilemapTrig		$DFC0
+#define DrawSATTrig		$DFC1
 
-#define romStart		$D20000	;game ROM, not TI ROM
+#define romStart		$D20000	; game ROM, not TI ROM
 
 
 kbdG1		= $F50012
-;----------------------------
+; ----------------------------
 kbdGraph	= 00000001b
 kbdTrace	= 00000010b
 kbdZoom		= 00000100b
@@ -59,7 +60,7 @@ kbitMode	= 06
 kbitDel		= 07
 
 kbdG2		= $F50014
-;----------------------------
+; ----------------------------
 kbdStore	= 00000010b
 kbdLn		= 00000100b
 kbdLog		= 00001000b
@@ -77,7 +78,7 @@ kbitMath	= 06
 kbitAlpha	= 07
 
 kbdG3		= $F50016
-;----------------------------
+; ----------------------------
 kbd0		= 00000001b
 kbd1		= 00000010b
 kbd4		= 00000100b
@@ -97,7 +98,7 @@ kbitApps	= 06
 kbitGraphVar	= 07
 
 kbdG4		= $F50018
-;----------------------------
+; ----------------------------
 kbdDecPnt	= 00000001b
 kbd2		= 00000010b
 kbd5		= 00000100b
@@ -117,7 +118,7 @@ kbitPgrm	= 06
 kbitStat	= 07
 
 kbdG5		= $F5001A
-;----------------------------
+; ----------------------------
 kbdCs		= 00000001b
 kbd3		= 00000010b
 kbd6		= 00000100b
@@ -135,7 +136,7 @@ kbitTan		= 05
 kbitVars	= 06
 
 kbdG6		= $F5001C
-;----------------------------
+; ----------------------------
 kbdEnter	= 00000001b
 kbdAdd		= 00000010b
 kbdSub		= 00000100b
@@ -153,7 +154,7 @@ kbitPower	= 05
 kbitClear	= 06
 
 kbdG7		= $F5001E
-;----------------------------
+; ----------------------------
 kbdDown		= 00000001b
 kbdLeft		= 00000010b
 kbdRight	= 00000100b

@@ -1,6 +1,10 @@
 .db $FF
 .ORG 0
 
+#define PatternGen	SegaVRAM + $0000
+#define ColorTable	SegaVRAM + $2000
+#define SpritePTR	SegaVRAM + $3800
+
 .dl MuseumHeader
 .dl MuseumIcon
 .dl HeaderEnd
@@ -8,7 +12,7 @@
 MuseumHeader:
 	.db $83, "Pac-Man (COLECO VER.)", 0
 MuseumIcon:
-#import "src/includes/art/logos/coleco.bin"
+	#import "src/includes/gfx/logos/coleco.bin"
 HeaderEnd:
 
 .ASSUME ADL = 0
@@ -30,11 +34,11 @@ SetupGame:
 	ei
 	jp LABEL_8024
 
-;up = left
-;down = right
-;left = up
-;right = down
-;SMS = CV
+; up = left
+; down = right
+; left = up
+; right = down
+; SMS = CV
 
 GetDPADInput:
 	push bc
@@ -88,7 +92,6 @@ LABEL_803B:
 LABEL_8044:
 	call LABEL_8B0E
 	call LABEL_8A01
-	call ClearTileCache
 	call LABEL_8B1D
 	ld a, 1
 	ld (DrawTilemapTrig), a
@@ -401,7 +404,7 @@ DATA_84F7:
 	.db $54, $00, $31, $39, $38, $33, $00, $41, $54, $41, $52, $49
 
 LABEL_8513:
-	call ClearTileCache
+	call.lil ClearTileFlags
 	call LABEL_A127
 	call LABEL_8133
 	call LABEL_80FF
@@ -501,6 +504,7 @@ LABEL_85AF:
 	jr LABEL_8567
 
 LABEL_85B4:
+	call Setup_DrawScreen
 	ei
 	halt
 	ld hl, ($C199)
@@ -522,11 +526,15 @@ LABEL_85BC:
 	ld a, 1
 	ld (DrawTilemapTrig), a
 
+	ld.lil a, (mpLcdRis)
+	bit 3, a
+	call nz, Setup_DrawScreen
 	ei
 	inc hl
 	ld a, (hl)
 	cp $FE
 	di
+
 	jr nz, LABEL_85BC
 
 	ld a, ($C19B)
@@ -956,9 +964,7 @@ LABEL_8B5F:
 	ld ($C0F5), a
 	ld ($C111), a
 	ld ($C12D), a
-	inc a
-	inc a
-	inc a
+	add a, 3
 	ld ($C0D9), a
 	ld hl, $182C
 	ld ($C0CF), hl
@@ -996,6 +1002,7 @@ LABEL_8C02:
 	ret
 
 LABEL_8C0D:
+	call.lil ClearTileFlags
 	ld hl, DATA_B3B7
 LABEL_8C10:
 	ld a, (hl)
@@ -2705,7 +2712,7 @@ LABEL_981C:
 	and a
 	jr nz, LABEL_9858
 	ld a, (ix+17)
-	;call LABEL_AD6F
+	; call LABEL_AD6F
 LABEL_9858:	
 	ld l, (ix+10)
 	ld h, (ix+11)
@@ -2713,7 +2720,7 @@ LABEL_9858:
 	and a
 	jr nz, LABEL_986A
 	ld a, (ix+18)
-	;call LABEL_AD6F
+	; call LABEL_AD6F
 LABEL_986A:	
 	ld hl, $C0D1
 	ld de, $001C
@@ -2914,7 +2921,7 @@ LABEL_99CE:
 
 LABEL_99E6:
 	ld a, (ix+17)
-	;call LABEL_AD6F
+	; call LABEL_AD6F
 LABEL_99EC:
 	call LABEL_9D00
 	ld h, (ix+20)
@@ -3004,7 +3011,7 @@ LABEL_9A8D:
 	inc a
 	jr z, LABEL_9A99
 	ld a, (ix+18)
-	;call LABEL_AD6F
+	; call LABEL_AD6F
 LABEL_9A99:
 	ld a, (ix+15)
 	cp $FF
@@ -3022,7 +3029,7 @@ LABEL_9A99:
 LABEL_9AB5:
 	ld (ix+15), b
 	ld a, (ix+18)
-	;call LABEL_AD6F
+	; call LABEL_AD6F
 LABEL_9ABE:
 	ld a, (ix+14)
 	inc a
@@ -3040,7 +3047,7 @@ LABEL_9ABE:
 LABEL_9AD9:
 	ld (ix+14), b
 	ld a, (ix+17)
-	;call LABEL_AD6F
+	; call LABEL_AD6F
 LABEL_9AE2:
 	call LABEL_9D00
 	ld c, (ix+1)
@@ -5035,15 +5042,28 @@ LABEL_A946:
 
 LABEL_A95A:
 	push af
+	push hl
+
+	ld a, 8
+	ld.lil (mpLcdIcr), a
+
+	ld hl, FrameCounter
+	inc (hl)
+
 	ld a, ($C080)
 	inc a
 	ld ($C080), a
+
 	ld a, $80
 	ld ($C152), a
+	pop hl
 	pop af
+	di
 	reti
 
 LABEL_A96A:
+	call Setup_DrawScreen
+	ei
 	ld a, ($C081)
 	ld b, a
 LABEL_A96E:
@@ -5082,13 +5102,13 @@ LABEL_A9A5:
 	ld.lil a, (KbdG1)
 	bit kbitMode, a
 	jr z, LABEL_A9BE
-	;handle hash key
+	; handle hash key
 	ld a, ($C0CC)
 	xor $40
 	ld ($C0CC), a
 	jr LABEL_A98D
 
-LABEL_A9BE:	;check for star key
+LABEL_A9BE:	; check for star key
 	ld.lil a, (KbdG6)
 	bit kbitClear, a
 	jp nz, $F000
@@ -6020,13 +6040,13 @@ DATA_BAF8:
 
 LABEL_BB11:
 	ld a, $9F
-	;out (Port_PSG), a
+	; out (Port_PSG), a
 	ld a, $BF
-	;out (Port_PSG), a
+	; out (Port_PSG), a
 	ld a, $DF
-	;out (Port_PSG), a
+	; out (Port_PSG), a
 	ld a, $FF
-	;out (Port_PSG), a
+	; out (Port_PSG), a
 	ld b, $18
 	ld hl, $C1AC
 	sub a
@@ -6126,7 +6146,7 @@ LABEL_BB82:
 	ret
 
 LABEL_BB9F:
-	;out (Port_PSG), a
+	; out (Port_PSG), a
 	and $70
 	jr z, LABEL_BBAD
 	cp $20
@@ -6137,7 +6157,7 @@ LABEL_BBAD:
 	ld a, (de)
 	bit 6, a
 	res 6, a
-	;out (Port_PSG), a
+	; out (Port_PSG), a
 	inc de
 	jr z, LABEL_BBBE
 	call LABEL_BBBE
@@ -6267,13 +6287,13 @@ RefreshTile:
 	and $F8
 	ld l, a
 
-	;divide the address pointer by the tile size
+	; divide the address pointer by the tile size
 	srl	h
-	rr	l		;hl /= 2
+	rr	l		; hl /= 2
 	srl	h
-	rr	l		;hl /= 2
+	rr	l		; hl /= 2
 	srl	h
-	rr	l		;hl /= 2
+	rr	l		; hl /= 2
 
 	ld a, l
 	ld.lil hl, SegaTileFlags
@@ -6285,16 +6305,9 @@ RefreshTile:
 	cpir.lil
 	pop bc
 	ret nz
+
 	dec.lil hl
 	ld.lil (hl), $00
-	ret
-
-ClearTileCache:
-	ld.lil hl, SegaTileFlags
-	ld.lil de, SegaTileFlags + 1
-	ld bc, $0100
-	ld.lil (hl), l
-	ldir.lil
 	ret
 
 GetNumberKey:
@@ -6334,25 +6347,29 @@ _:	bit kbit6, a
 SaveSP:
 	.dw 0
 
-HandleInterrupt:
+Setup_DrawScreen:
 	di
-	push af
-	ld a, 8
-	ld.lil (mpLcdIcr), a
-	push hl
-	ld hl, FrameCounter
-	ld a, (hl)
-	inc (hl)
+	call	StoreRegisters
+	push	af
+	ld	a, (FrameCounter)
 	rra
-	call nz, DrawScreen
-	pop hl
-	pop af
-	ei
+	call	c, DrawScreen
+	pop	af
+	call	RestoreRegisters
+	ret
+
+HandleInterrupt:
 	jp LABEL_A95A
 
 FrameCounter:
 .db $00
 HandleInterrupt_End:
 
-#include "src/ColecoPac/ti_equates.asm"
-#include "src/ColecoPac/screen_drawing_routines.asm"
+#include "src/includes/ti_equates.asm"
+
+#undef ScreenMap
+#undef SAT
+#define ScreenMap	SegaVRAM + $1800
+#define SAT		SegaVRAM + $1B00
+
+#include "src/includes/renderer_MSX.asm"

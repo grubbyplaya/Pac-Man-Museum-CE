@@ -1,5 +1,3 @@
-	.ASSUME ADL=0
-
 #define DrawScreenPTR $E000
 
 .db $FF
@@ -10,12 +8,13 @@
 .dl HeaderEnd
 
 MuseumHeader:
-	.db $80, "Ms.Pac-Man (SMS Ver.)",0
+	.db $85, "Ms.Pac-Man (SMS Ver.)",0
 
 MuseumIcon:
-#import "src/includes/art/logos/mspac.bin"
+#import "src/includes/gfx/logos/mspac.bin"
 HeaderEnd:
 
+.ASSUME ADL=0
 .ORG $0000
 
 LABEL_0:
@@ -59,6 +58,9 @@ LABEL_20:
 	.fill 13, $00
 
 LABEL_38:
+	; ld a, (UsbIntSts)
+	; xor a
+	; jp nz, HandleUSBInterrupt
 	jp LABEL_74
 
 ; Data from 3B to 3F (5 bytes)
@@ -67,27 +69,13 @@ LABEL_38:
 ; Data from 40 to 65 (38 bytes)
 DATA_40:
 	.db $DE, $A7, $28, $08
-	.fill 34, $00
+	.fill 30, $00
 
 LABEL_66:
 	jp LABEL_D5
+
 LABEL_74:
 	push af
-	push hl
-	push de
-	push bc
-	push ix
-	push iy
-	exx
-	push hl
-	push de
-	push bc
-	ld hl, FrameCounter
-	ld a, (hl)
-	inc (hl)
-	rra
-	call c, DrawScreenPTR
-
 	ld a, 8
 	ld.lil (mpLcdIcr), a
 	push bc
@@ -102,15 +90,6 @@ LABEL_74:
 	xor a
 	ld ($D905), a
 	pop bc
-	pop bc
-	pop de
-	pop hl
-	exx
-	pop iy
-	pop ix
-	pop bc
-	pop de
-	pop hl
 	pop af
 	ei
 	reti
@@ -118,8 +97,29 @@ LABEL_74:
 FrameCounter:
 	.db $00
 
+HandleUSBInterrupt:
+	; ld a, (USB_TransferDirection)	; are we the host or the slave?
+	; bit USBSlave, a
+	; jr nz, TransferInputFlags	; if we're the slave, transfer the input flags to the other calc
+
+	; otherwise, retrieve slave's input flags
+	; call USB_RecieveByte
+	; ld (P2_Input), a
+	; clear USB interrupt here
+	; reti
+
+TransferInputFlags:
+	ld a, ($D800)		; retrieve our input flags
+	; call USB_TransferByte	; send it over to the host
+	; clear USB interrupt here
+	reti
+
 LABEL_D5:
 	push af
+	push hl
+	ld hl, PausedGame
+	xor (hl)
+	jr z, LABEL_E9
 	ld a, ($D755)
 	and a
 	jr z, LABEL_E9
@@ -130,8 +130,14 @@ LABEL_D5:
 	cpl
 	ld ($D83A), a
 LABEL_E9:
+	ld.lil a, (KbdG1)
+	ld (hl), a
+	pop hl
 	pop af
 	retn
+
+PausedGame:
+	.db $00
 
 LABEL_EC:
 	im 1
@@ -2196,12 +2202,12 @@ LABEL_2444:
 
 LABEL_2472:
 	xor a
-	ld.lil hl, $D2C000
+	ld.lil hl, romStart + $C000
 	ld.lil de, SAT
 	ld bc, 34
 	ldir.lil
-	ld e, $80
-	ld l, e
+	ld e, (SAT + $80) & $F0
+	ld l, $80
 	ld bc, 68
 	ldir.lil
 	ld a, 1
@@ -5656,15 +5662,9 @@ LABEL_4078:
 	ld (ix+27), a
 	ld a, ($D802)
 	ld e, a
-	xor a
-	;in a, (Port_IOPort2)
-	cpl
-	and $0F
-	ld h, a
-	ld l, b
-	add hl, hl
-	add hl, hl
-	ld a, h
+	; read player 2 input
+	ld a, (P2_Input)
+	ld b, a
 	and $3F
 	pop ix
 	call LABEL_40E5
@@ -5690,27 +5690,30 @@ LABEL_4078:
 ReadInput:
 	or a
 	push	de
-	ld.lil	a, (kbdG7)		;check arrow keys
-	rla				;adjust bitmask
-	bit	4, a			;is the up key pressed?
-	jr	z, +_			;jump if it isn't
-	xor	$11			;move the flag to bit 0			
+	ld.lil	a, (kbdG7)		; check arrow keys
+	rla				; adjust bitmask
+	bit	4, a			; is the up key pressed?
+	jr	z, +_			; jump if it isn't
+	xor	$11			; move the flag to bit 0			
 _:	ld	d, a
 
 	ld	e, $80
 	ld.lil	a, (kbdG1)
-	and	kbd2nd		;check button 1
+	and	kbd2nd		; check button 1
 	rra
 	or	d
 	ld	d, a
 
 	ld.lil	a, (kbdG2)
-	and	kbdAlpha	;check button 2
+	and	kbdAlpha	; check button 2
 	rra
 	rra
 	or	d
 	pop	de
 	ret
+
+P2_Input:
+	.db $00
 
 LABEL_40D4:
 	ld a, ($D800)
@@ -5794,7 +5797,7 @@ LABEL_4138:
 	ld a, ($D802)
 	ld e, a
 	xor a
-	;in a, (Port_IOPort2)
+	; in a, (Port_IOPort2)
 	rlc b
 	rla
 	rlc b
@@ -6022,6 +6025,14 @@ LABEL_4282:
 	ret
 
 LABEL_42E8:
+	di
+
+	ld hl, FrameCounter
+	ld a, (hl)
+	inc (hl)
+	rra
+	call c, DrawScreenPTR
+
 	ei
 	xor a
 	ld ($D839), a
@@ -6037,6 +6048,7 @@ LABEL_42ED:
 	jr nz, LABEL_4303
 	bit kbitMode, a
 	jp nz, LABEL_66
+	ld (PausedGame), a
 	ld.lil a, (KbdG6)
 	bit kbitClear, a
 	jp nz, $F000
@@ -6049,13 +6061,20 @@ LABEL_4303:
 	and a
 	ret nz
 	call ClearTileCache
-	di
+
+	ld.lil hl, SegaVRAM
+	ld.lil de, SegaVRAM + 1
+	ld bc, $4100
+	ld.lil (hl), $00
+	ldir.lil
+
 	ld a, $FF
 	ld ($DF03), a
 	xor a
 	ld ($D83A), a
 	call LABEL_4320
 	call LABEL_44A6
+
 	ld sp, $DED0
 	im 1
 	jp LABEL_FA
@@ -6073,17 +6092,17 @@ DATA_4329:
 SetTilemapPTR:
 	ld a, b
 	push bc
-	ld bc, $4400
+	ld bc, ScreenMap & $FFFF
 	cp $FD
 	jr nz, +_
-	ld b, $3C
+	ld b, ((SegaVRAM + $3000) & $FF00) >> 8
 _:	ld ((TilemapPTR + 1) - romStart), bc
 	pop bc
 	ret
 
 LABEL_4349:
 	ld a, $D0
-	ld.lil (SegaVRAM+$3F00), a
+	ld.lil (SAT), a
 	ret
 
 LABEL_4360:
@@ -6743,13 +6762,13 @@ LABEL_4778:
 
 ; 1st entry of Jump Table from 31D2 (indexed by unknown)
 LABEL_478A:
-	ld bc, $2000 | $DFC0
+	ld bc, $FFC0
 	add hl, bc
 	ret
 
 ; 1st entry of Jump Table from 31D4 (indexed by unknown)
 LABEL_478F:
-	ld bc, DATA_40
+	ld bc, $0040
 	add hl, bc
 	ret
 
@@ -7212,7 +7231,7 @@ LABEL_4AC5:
 ; Pointer Table from 4AE6 to 4AF1 (6 entries, indexed by $DA43)
 DATA_4AE6:
 	.dw $DEFD, $DEFE, $DEFF, $DF00
-DATA_4AEE:	;2 player stuff
+DATA_4AEE:	; 2 player stuff
 	.dw $0304, $0404
 
 LABEL_4AF2:
@@ -8022,6 +8041,7 @@ LABEL_5152:
 	ld a, $03
 	ld hl, $0000
 	call LABEL_76E3
+	; call.lil SetTitleRows + romStart
 	ld a, $04
 	ld hl, $3800
 	call LABEL_76E3
@@ -8054,6 +8074,31 @@ LABEL_5196:
 	jr nz, LABEL_5179
 	call LABEL_4384
 	ret
+
+.assume ADL=1
+SetTitleRows:
+	di
+	ld hl, LeftTitleRow + romStart
+	ld de, ScreenMap
+	ld bc, RightTitleRow - LeftTitleRow
+	ldir
+
+	ld hl, RightTitleRow + romStart
+	ld de, ScreenMap + $0030
+	ld bc, LABEL_519F - RightTitleRow
+	ldir
+	
+	ld hl, ScreenMap
+	ld de, ScreenMap + $0040
+	ld bc, 64*29
+	ldir
+	ret.sis
+.assume ADL=0
+
+LeftTitleRow:
+.db $00, $00, $00, $00, $01, $00, $02, $00, $48, $00, $48, $00, $8E, $01, $00, $00
+RightTitleRow:
+.db $54, $00, $55, $00, $48, $00, $19, $00, $1A, $00, $1B, $00, $00, $00, $00, $00
 
 LABEL_519F:
 	di
@@ -9221,7 +9266,7 @@ LABEL_5D0F:
 	ld l, $00
 	ld bc, $0600
 	call SetTilemapTrig
-	ld.lil de, $D2C200
+	ld.lil de, romStart + $C200
 LABEL_5D35:
 	di
 	call LABEL_428C
@@ -9273,6 +9318,13 @@ LABEL_5D95:
 	ld ($DA52), a
 	ld a, ($D746)
 	ld ($DA97), a
+	ret
+
+ToggleSpriteBG:
+	ld hl, (TransPixelIndex + 1) - romStart
+	ld a, $40
+	xor (hl)
+	ld (hl), a
 	ret
 
 LABEL_5DAD:
@@ -9516,7 +9568,7 @@ LABEL_5F5D:
 	ld hl, $C200
 	call LABEL_791B
 	ld hl, $1000
-	ld.lil de, $D2C200
+	ld.lil de, romStart + $C200
 	ld bc, $0940
 	call LABEL_428C
 	di
@@ -9900,7 +9952,7 @@ LABEL_62D6:
 	ld ix, $DA53
 	ld a, $0F
 	ld (ix+9), a
-	ld hl, DATA_40
+	ld hl, $0040
 	ld (ix+0), l
 	ld (ix+1), h
 	ld hl, $0020
@@ -10281,6 +10333,8 @@ LABEL_6666:
 	ld a, $01
 	call LABEL_5E09
 	jp LABEL_6657
+
+
 
 LABEL_668D:
 	ld b, $FF
@@ -11016,7 +11070,7 @@ LABEL_76F5:
 	add hl, hl
 	ld.lil de, (Bank5_Address)
 	add.lil hl, de
-	ld.lil de, $D2D877
+	ld.lil de, romStart + $D877
 	ld bc, $0008
 	ldir.lil
 	ld ix, $D877
@@ -11422,7 +11476,7 @@ LABEL_7929:
 	add hl, hl
 	ld.lil de, (Bank5_Address)
 	add.lil hl, de
-	ld.lil de, $D2D877
+	ld.lil de, romStart + $D877
 	ld bc, $0008
 	ldir.lil
 	ld ix, $D877
@@ -11844,14 +11898,9 @@ LABEL_7C4B:
 	jr nc, LABEL_7C5A
 	add a, $1C
 LABEL_7C5A:
-	add a, a
-	add a, a
-	add a, a
 	ld l, a
-	ld h, $00
-	add hl, hl
-	add hl, hl
-	add hl, hl
+	ld h, $40
+	mlt hl
 	ld a, b
 	and $1F
 	add a, a
@@ -12133,26 +12182,26 @@ LABEL_7EA1:
 	ld d, a
 
 LABEL_7EA5:
-	ld b, 192/8	;height of SMS screen (in tiles)
+	ld b, 192/8	; height of SMS screen (in tiles)
 	push af
 	ei
 	halt
 	ld l, a
-	ld h, 160
+	ld h, 256/2
 	mlt hl
 	add hl, hl
 
 	di
-	ld.lil de, VRAM+$1E00
+	ld.lil de, ScreenPTR
 	add.lil hl, de
 _:	push.lil hl
 	pop.lil de
 	inc e
 	push bc
-	ld bc, lcdWidth
+	ld bc, 256
 	ld.lil (hl), c
 	ldir.lil
-	ld bc, lcdWidth*7
+	ld bc, 256*7
 	add.lil hl, bc
 	pop bc
 	djnz -_
@@ -13505,9 +13554,11 @@ DATA_B847:
 	.db $F0
 	.fill 33, $00
 
-#include "src/MSPacMan/ti_equates.asm"
+#include "src/includes/ti_equates.asm"
+#undef lcdWidth
+#define lcdWidth 256
 #include "src/MSPacMan/screen_drawing_routines.asm"
 #include "src/MSPacMan/appvars.asm"
 
 Appvar_End:
-.ORG Appvar_End - $D20000
+.ORG Appvar_End - romStart

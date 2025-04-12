@@ -29,62 +29,51 @@ Icon:
 
 START:
 	ld	(cursorImage), sp
+	call	EasterEgg_CheckAns
 JumpToLauncher:
 	di
-	;clear palette
+	; clear palette
 	ld	hl, mpLcdPalette
 	ld	de, mpLcdPalette+1
 	ld	bc, $0100
 	ld	(hl), $00
 	ldir
 
-	;clear VRAM
-	ld	hl, VRAM
-	ld	de, VRAM+1
-	ld	bc, VRAMEnd-VRAM
-	ld	(hl), $00
-	ldir
+	call	ClearVRAM
+	call	ClearSafeRAM
+	call	SetDefaultSPI
 
-	;clear SafeRAM
-	ld	hl, pixelShadow
-	ld	de, pixelShadow+1
-	ld	bc, $4800
-	ld	(hl), $00
-	ldir
-
-	;set up 4bpp mode with Vcomp interrupts
-	ld	hl, mpLcdCtrl
-	ld	(hl), $25
-	inc	hl
-	ld	(hl), %00011101
+	; set up 4bpp mode with Vcomp interrupts
+	ld	hl, lcdBpp4 | lcdIntFront | lcdBgr | lcdBepo
+	ld	(mpLcdCtrl), hl
 	ld	hl, $E30004
 	ld	(hl), $3F
 
-	;set up front porch interrupt
+	; set up front porch interrupt
 	ld	hl, mpLcdImsc
 	set	3, (hl)
 	ld	hl, mpLcdIcr
 	set	3, (hl)
 
+	; set framebuffer PTR to VRAM
+	ld	hl, VRAM
+	ld	(mpLcdMBASE), hl
+
 	ld	hl, $F50000
 	ld	(hl), 3
 
+	; if the date is November 16th, set the palette to black and white
 	call	CheckDate
 	ld	bc, $0B10
 	sbc	hl, bc
 	call	z, LoadGreyPalette
-	call	LoadPalette
+	call	nz, LoadPalette
 
-	;decompress the menu art and load it into VRAM
-	ld	hl, LogoArt
+	; decompress the menu art and load it into VRAM
+	ld	hl, TitleBG
 	ld	de, plotSScreen
 	call	DecompressZX0
 	call	ScrollTitleLogo
-
-	ld	hl, TitleBG
-	ld	de, VRAM + (lcdWidth*100/2)
-	call	DecompressZX0
-
 	call	WhiteOutPalette
 	DrawText(80, 208, CopyrightText)
 
@@ -93,6 +82,7 @@ JumpToLauncher:
 	call	TitleLoop
 	DrawText(80, 208, BlankCopyText)
 
+	call	ClearSafeRAM
 	call	ScrollLogoUp
 	Drawtext(52, 150, Press2ndText)
 
@@ -106,12 +96,12 @@ MenuLoop:
 	call	nz, SwitchGame
 	pop	af
 	ld	(LastPress), a
-	;if 2nd is pressed, load the selected game
+	; if 2nd is pressed, load the selected game
 	ld	a, (KbdG1)
 	bit	Kbit2nd, a
 	jp	nz, LoadGame
 
-	;if clear is pressed, exit the game
+	; if clear is pressed, exit the game
 	ld	a, (KbdG6)
 	bit	kbitClear, a
 	jp	nz, ExitGame
@@ -119,47 +109,31 @@ MenuLoop:
 	jr	MenuLoop
 
 LoadGame:
-	;clear VRAM again
-	ld	hl, VRAM
-	ld	de, VRAM+1
-	ld	bc, VRAMEnd-VRAM
-	ld	(hl), $00
-	ldir
+	call	ClearVRAM
+	call	ClearSafeRAM
 
-	;clear emulated memory map location
-	ld	hl, romStart
-	ld	de, romStart+1
-	ld	bc, $FFFF
-	ld	(hl), $00
-	ldir
+	; set up 8bpp mode with Vcomp interrupts
+	ld	hl, lcdBpp8 | lcdIntFront | lcdBgr
+	ld	(mpLcdCtrl), hl
 
-	;clear SafeRAM
-	ld	hl, pixelShadow
-	ld	de, pixelShadow+1
-	ld	bc, $4800
-	ld	(hl), $00
-	ldir
-
-	;set up 8bpp mode with Vcomp interrupts
-	ld	hl, mpLcdCtrl
-	ld	(hl), $27
-	inc	hl
-	ld	(hl), %00011001
-
-	;set up LCD interrupts
+	; set up LCD interrupts
 	ld	hl, $F00004
 	ld	(hl), $00
 	inc	hl
 	ld	(hl), $08
 
+	; set framebuffer PTR to ScreenPTR
+	ld	hl, ScreenPTR
+	ld	(mpLcdMBASE), hl
+
 	ld	hl, ExitGameSIS
-	ld	de, $D2F000
+	ld	de, romStart + $F000
 	ld	bc, 11
 	ldir
 
 	call	LocateGameHeader
 
-	ld	a, $D2
+	ld	a, romStart >> 16
 	ld	mb, a
 	ld	sp, $D1A745
 	ld.sis	sp, $DFF0
@@ -189,31 +163,39 @@ LoadGame:
 	add	hl, bc
 	pop	bc
 
-
-	cp	$80
-	jr	z, LoadGame_Sega
 	cp	$83
 	jr	z, LoadGame_MSX
+	cp	$84
+	jr	z, LoadGame_TI
+	cp	$85
+	jr	z, LoadGame_Sega
 
-LoadGame_Sega:	;load Game Gear or Master System game
-	;load game into RAM
+LoadGame_Sega:	; load Game Gear or Master System game
+	; load game into RAM
 	ld	de, romStart
 	ldir
 
-	jp.sis	$0000	;start of program
+	call	SetGameSPI
 
-LoadGame_MSX:	;load MSX game
-	;load game into RAM
+	jp.sis	$0000	; start of program
+
+LoadGame_MSX:	; load MSX game
+	; load game into RAM
 	ld	de, romStart + $4018
 	ldir
 
-	;load TMS9918 palette into LCD palette RAM
+	; load TMS9918 palette into LCD palette RAM
 	ld	hl, MSXPalette
 	ld	de, mpLcdPalette
 	ld	bc, 32
 	ldir
 
-	jp.sis	$4018	;start of program
+	call	SetGameSPI
+
+	jp.sis	$4018	; start of program
+
+LoadGame_TI:	; load native 84+ CE program
+
 
 SwitchGame:
 	ld	hl, LastPress
@@ -328,6 +310,7 @@ StartButtonText:
 	.db "PRESS MODE KEY",0
 BlankButtonText:
 	.db "              ",0
+
 MissingAppvarText:
 	.db "      MISSING THE FOLLOWING APPVAR",0
 AppvarExtensionText:
@@ -363,102 +346,81 @@ _:	call	WaitAFrame
 	jp	nz, WhiteOutPalette
 	djnz	-_
 	call	SetupAnims
+	pop	af
 	jp	TitleLoop
 
 #include "src/animate_sprites.asm"
 
-CheckDate:	;outputs HL as the month and date
-	or	a
-	sbc	hl, hl
-	ld	a, ($D02B0A)	;TI-OS month value
-	ld	h, a
-	ld	a, ($D02B13)	;TI-OS date value
-	ld	l, a
-	ret
+#include "src/parse_os_vars.asm"
 
-CheckDate_SwitchAnim:	;check for special easter egg days
-	ld	ix, SpecialDays
-	call	CheckDate
-	xor	a
-_:	inc	a
-	cp	4
-	ret	nc		;looped too many times? just exit.
-	push	hl
-	ld	bc, (ix)
-	or	a
-	sbc	hl, bc		;compare HL and BC
-	pop	hl
-	lea	ix, ix+3
-	jr	nz, -_		;if they aren't the same, loop back
-	ld	(CurrentAnim), a
-	ret
 
-SpecialDays:
-	.dl $0516	;Pac-Man release date (5/22)
-	.dl $0203	;Ms. Pac-Man release date (2/3)
-	.dl $091A	;Super Pac-Man release date (9/26)
+DrawSprite:	; draws a 16x16 sprite
+	; init sprite
+	ld	a, l
+	ld	(SpriteWidth), a
+	ld	(NewLineGap), bc
 
-DrawSprite:	;draws a 16x16 sprite
-	ld	a, 16
-_:	ld	bc, 8
+	ld	a, h
+	ld	hl, (TempSpritePTR)
+_:	ld	bc, (SpriteWidth)
 	ldir
 	ex	de, hl
 	ld	(hl), $00
-	ld	bc, 152
+	ld	bc, (NewLineGap)
 	add	hl, bc
 	ex	de, hl
 	dec	a
 	jr	nz, -_
 	ret
 
-DrawSprite_32:	;draws a 32x32 sprite
-	ld	bc, lcdWidth*16/2
+SpriteWidth:
+	.dl 0
+
+NewLineGap:
+	.dl 0
+
+EraseSprite:	; draws a blank sprite
+	ld	hl, plotSScreen
+	ld	(TempSpritePTR), hl
+	SpriteDim(16, 16)
+	; if DoubleSprite is set, double the size of the sprite
+	ld	a, (iy+DoubleSprite)
 	or	a
+	jr	z, +_
+	SpriteDim(32, 32)
+_:	jr	DrawSprite
+
+AdjustSpriteOffset:	; adjust 32x32 sprite
 	ex	de, hl
+	ld	bc, (lcdWidth*16)/2
+	or	a
 	sbc	hl, bc
 	ex	de, hl
-
-	ld	a, 32
-_:	ld	bc, 16
-	ldir
-	ex	de, hl
-	ld	(hl), $00
-	ld	bc, 144
-	add	hl, bc
-	ex	de, hl
-	dec	a
-	jr	nz, -_
+	SpriteDim(32, 32)
 	ret
 
-EraseSprite:	;draws a blank sprite
-	ld	hl, plotSScreen
-	ld	a, (iy+11)
-	or	a
-	jr	nz, DrawSprite_32
-	jr	DrawSprite
-
 TitleY:
-	.db LcdHeight		;the logo scrolls across the whole screen, so we're looping 240 times
+	.db LcdHeight		; the logo scrolls across the whole screen, so we're looping 240 times
 
-ScrollTitleLogo:		;scrolls the title logo across the screen, Pac-Man NES style
+ScrollTitleLogo:		; scrolls the title logo across the screen, Pac-Man NES style
 	call	WaitAFrame
 	ld	a, (TitleY)
 	ld	hl, kbdG1
-	bit	kbitMode, (hl)	;if MODE is pressed, end the animation early
+	bit	kbitMode, (hl)	; if MODE is pressed, end the animation early
 	jr	z, +_
-	ld	a, 1
+	xor	a
 _:	ld	hl, VRAM
 	ld	c, a
-	ld	b, LcdWidth/2		;BC = VRAM offset
+	ld	b, LcdWidth/2		; BC = VRAM offset
 	mlt	bc
 	add	hl, bc
-	ex	de, hl			;DE = where the logo will be drawn
-	ld	hl, plotSScreen	;title art
+	ex	de, hl			; DE = where the logo will be drawn
+	ld	hl, plotSScreen	; title art
 	ld	bc, (LcdWidth*lcdHeight)/2
 	ldir
 	dec	a
 	ld	(TitleY), a
-	cp	$FF			;was A zero just now?
+	cp	$FF			; was A zero just now?
 	jr	nz, ScrollTitleLogo
 	ld	a, 240
 	ld	(TitleY), a
@@ -475,7 +437,7 @@ DrawLogo:
 	ld	bc, 0
 	ld	a, (hl)
 
-	;offset DE to center the selected game's logo on the screen
+	; offset DE to center the selected game's logo on the screen
 	ex	de, hl
 	and	$FC
 	rra \ rra
@@ -505,7 +467,7 @@ _:	push	bc
 	jr	nz, -_
 	ret
 
-ScrollLogoUp:			;scrolls generic logo up
+ScrollLogoUp:			; scrolls generic logo up
 	ld	b, 35
 _:	push	bc
 	ld	de, VRAM
@@ -547,12 +509,12 @@ _:	ld	c, (ix)
 
 	DrawText(0,158,BlankTitleText)
 
-	;draw text
+	; draw text
 	call	LocateGameHeader
 	ld	bc, (hl)
 	inc	bc
 	add	hl, bc
-	;calc size of string for centering
+	; calc size of string for centering
 	push	hl
 	ld	de, VRAM + (lcdWidth*158/2)
 	call	CenterText
@@ -567,7 +529,7 @@ ScrollLogoY:
 WhiteOutPalette:
 	ld	hl, mpLcdPalette
 	ld	de, mpLcdPalette + 1
-	ld	bc, 26
+	ld	bc, 32
 
 	ld	(hl), $FF
 	ldir
@@ -585,22 +547,23 @@ _:	call	WaitAFrame
 	ldir
 
 LoadPalette:
-	;load menu palette
+	; load menu palette
 	ld	hl, MenuPalette
 	ld	de, mpLcdPalette
-	ld	bc, MSXPalette - MenuPalette
+	ld	bc, GreyPalette - MenuPalette
 	ldir
 	ret
 
 LoadGreyPalette:
-	;load menu palette
+	; load grey palette
 	ld	hl, GreyPalette
 	ld	de, MenuPalette
-	ld	bc, MSXPalette - MenuPalette
+	ld	bc, GreyPalette - MenuPalette
 	ldir
+	xor	a
 	ret
 	
-DrawString:	;IX = string, DE = VRAM address
+DrawString:	; IX = string, DE = VRAM address
 	ld	a, (ix)
 	sub	$41
 	jp	c, LoadNonLetter
@@ -612,7 +575,7 @@ _:	push	de
 	ld	l, a
 	ld	h, 32
 	mlt	hl
-	ld	de, MenuFont	;locate specific letter
+	ld	de, MenuFont	; locate specific letter
 	add	hl, de
 	pop	de
 
@@ -671,7 +634,7 @@ LoadNumber:
 	add	hl, bc
 	jp	DrawLetter
 
-ToggleText:	;toggle text on title screen
+ToggleText:	; toggle text on title screen
 	ld	hl, StartButtonToggle
 	ld	de, VRAM + (173*lcdWidth/2) + 52
 	ld	a, (hl)
@@ -685,7 +648,7 @@ _:	jp	DrawString
 StartButtonToggle:
 	.db $00
 
-CenterText:	;DE = text position on screen
+CenterText:	; DE = text position on screen
 	inc	hl
 	ld	bc, $FF
 	xor	a
@@ -722,7 +685,7 @@ ExitGame:
 	ei
 	ret
 
-ExitGameSIS:	;return to launcher from selected game
+ExitGameSIS:	; return to launcher from selected game
 	ld.lil	sp, (CursorImage)
 	jp.lil	JumpToLauncher
 
@@ -736,10 +699,28 @@ WaitAFrame:
 	inc	(hl)
 	ret
 
+ClearVRAM:
+	; clear VRAM
+	ld	hl, VRAM
+	ld	de, VRAM+1
+	ld	bc, VRAMEnd-VRAM
+	ld	(hl), $00
+	ldir
+	ret
+
+ClearSafeRAM:
+	; clear SafeRAM
+	ld	hl, pixelShadow
+	ld	de, pixelShadow+1
+	ld	bc, $B800
+	ld	(hl), $00
+	ldir
+	ret
+
 FrameCounter:
 	.db $00
 
-Headers:	;headers for each game
+Headers:	; headers for each game
 	.dl PacManGGHeader
 	.dl MSXHeader
 	.dl AtariPacHeader
@@ -759,27 +740,27 @@ MsPacMSHeader:
 SuperPacHeader:
 	.db $15, "SuperPac",0
 
-MenuPalette:	;palette for main menu
-	#import "src/includes/menupalette.bin"
+MenuPalette:	; palette for main menu
+	#import "src/includes/gfx/misc/menupalette.bin"
+GreyPalette:	; easter egg grey palette
+	#import "src/includes/gfx/misc/greypalette.bin"
 
-MSXPalette:	;TMS9918 colour palette
+
+MSXPalette:	; TMS9918 colour palette
 	.dw $0000, $0000, $A2C9, $BB2F, $AD5B, $C1DD, $D96A, $337D
 	.dw $ED8B, $7E2F, $670B, $EF30, $1E88, $D996, $6739, $FFFF
 
-GreyPalette:	;easter egg grey palette
-	#import "src/includes/greypalette.bin"
+TitleBG:	; Pac-Man Museum CE title screen
+#import "src/includes/gfx/misc/titlebg.bin"
 
-LogoArt:	;Pac-Man Museum CE logo
-#import "src/includes/logo.bin"
-
-TitleBG:	;maze bars for launcher
-#import "src/includes/titlebg.bin"
-
-MenuFont:	;Namco arcade font for launcher
+MenuFont:	; Namco arcade font for launcher
 #include "src/includes/font.asm"
 
 Animations:
 #include "src/includes/anim.asm"
 
-;ZX0 art decompressor
+; ZX0 art decompressor
 #include "src/includes/dzx0_fast.asm"
+
+; SPI routines
+#include "src/includes/spi.asm"

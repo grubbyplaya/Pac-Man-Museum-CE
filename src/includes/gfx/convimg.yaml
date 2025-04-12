@@ -1,0 +1,65 @@
+palettes: 
+  - name: menupalette
+    fixed-entries: 
+      - image: src/includes/gfx/misc/menupalette.png
+
+  - name: greypalette
+    fixed-entries:
+      - image: src/includes/gfx/misc/greypalette.png
+
+converts:
+  - name: sprites
+    palette: menupalette
+    bpp: 4
+    images:
+      - src/includes/gfx/sprites/*.png
+    width-and-height: false
+
+  - name: font
+    palette: menupalette
+    bpp: 4
+    images:
+      - src/includes/gfx/font/*.png
+    width-and-height: false
+
+  - name: logos
+    palette: menupalette
+    bpp: 4
+    compress: zx0
+    images:
+    - src/includes/gfx/logos/*.png
+
+  - name: miscart
+    palette: menupalette
+    bpp: 4
+    compress: zx0
+    images:
+      - src/includes/gfx/misc/titlebg.png
+    width-and-height: false
+    
+outputs:
+  - type: bin
+    converts:
+      - miscart
+    directory: src/includes/gfx/misc
+
+  - type: bin
+    converts:
+      - sprites
+    directory: src/includes/gfx/sprites
+
+  - type: bin
+    converts:
+      - font
+    directory: src/includes/gfx/font
+    
+  - type: bin
+    converts:
+      - logos
+    directory: src/includes/gfx/logos
+
+    type: bin
+    palettes:
+      - menupalette
+      - greypalette
+    directory: src/includes/gfx/misc

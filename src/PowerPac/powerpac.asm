@@ -1,5 +1,9 @@
 .ASSUME ADL=0
 
+#define PatternGen	SegaVRAM + $2800
+#define ColorTable	SegaVRAM + $3F80
+#define SpritePTR	SegaVRAM + $2000
+
 .db $FF
 .ORG 0
 
@@ -8,9 +12,9 @@
 .dl HeaderEnd
 
 MuseumHeader:
-	.db $83, "Super Pac-Man (Sord Ver.)",0
+	.db $83, "Super Pac-Man (Sord Ver.)",0,0
 MuseumIcon:
-#import "src/includes/art/logos/superpac.bin"
+#import "src/includes/gfx/logos/superpac.bin"
 HeaderEnd:
 
 .ORG $4018
@@ -36,6 +40,7 @@ SetupGame:
 	ld.lil de, SegaVRAM + $3F80
 	ld bc, $20
 	ldir.lil
+
 	ld e, 0
 	ld a, $D0
 	ld.lil (de), a
@@ -68,10 +73,21 @@ LABEL_2007:
 	ld hl, LABEL_2E0B
 	ld ($C400), hl
 LABEL_205B:
+	di
+
+	ld a, (FrameCounter)
+	rrca
+	call nc, DrawScreen
+
+	push hl
+	ld hl, FrameCounter
+	inc (hl)
+	pop hl
+
 	ei
-	ld hl, ($C330)
+_:	ld hl, ($C330)
 	dec l
-	jr nz, LABEL_205B
+	jr nz, -_
 	inc h
 	ld ($C330), hl
 	ld.lil hl, $CF00 + romStart
@@ -92,13 +108,6 @@ LABEL_2089:
 	ld.lil a, (KbdG6)
 	bit kbitClear, a
 	jp nz, $F000
-	ld a, (FrameCounter)
-	rrca
-	call nc, DrawScreen
-	push hl
-	ld hl, FrameCounter
-	inc (hl)
-	pop hl
 	ld a, 8
 	ld.lil (mpLcdIcr), a
 	ld a, $01
@@ -174,10 +183,10 @@ LABEL_20C9:
 	ret nz
 	ld hl, $0000
 
-	;check for mode, 1, 2, 5, or 6 keys
+	; check for mode, 1, 2, 5, or 6 keys
 	ld.lil a, (KbdG1)
 	bit kbitMode, a
-	jr nz, LABEL_20DF	;enable 1 player mode if keys 1, mode, or 5 are pressed
+	jr nz, LABEL_20DF	; enable 1 player mode if keys 1, mode, or 5 are pressed
 	ld.lil a, (KbdG3)
 	bit kbit1, a
 	jr nz, LABEL_20DF
@@ -189,7 +198,7 @@ LABEL_20C9:
 	ld.lil a, (KbdG5)
 	bit kbit6, a
 	ret z
-LABEL_20DE:	;enable 2 player mode if keys 2 or 6 are pressed
+LABEL_20DE:	; enable 2 player mode if keys 2 or 6 are pressed
 	inc h
 LABEL_20DF:
 	ld ($C332), hl
@@ -1389,7 +1398,7 @@ LABEL_2F28:
 	call LABEL_2D93
 	call LABEL_3F58
 	call LABEL_2DA4
-	call.lil ClearTileCache
+	call.lil ClearTileFlags
 	ld hl, $00F0
 	ld ($CF00), hl
 	call LABEL_3EF2
@@ -2742,7 +2751,7 @@ LABEL_39AC:
 LABEL_39B0:
 	ld a, $03
 LABEL_39B4:
-	call LABEL_39E0	;init sprite
+	call LABEL_39E0	; init sprite
 	call LABEL_2D88
 LABEL_399E:
 	call LABEL_3A02
@@ -2801,7 +2810,7 @@ LABEL_3A02:
 LABEL_3A15:
 	add a, $50
 	ld c, a
-	ld a, ($C456)	;Is Pac-Man Super?
+	ld a, ($C456)	; Is Pac-Man Super?
 	and a
 	ld a, c
 	jr z, LABEL_3A21
@@ -3808,6 +3817,10 @@ DATA_4474:
 HandleInterrupt:
 	jp LABEL_2089
 
-#include "src/PowerPac/screen_drawing_routines.asm"
+#include "src/includes/renderer_MSX.asm"
+#include "src/includes/ti_equates.asm"
+#undef ScreenMap
+#undef SAT
 
-#include "src/PowerPac/ti_equates.asm"
+#define ScreenMap	SegaVRAM + $3C00
+#define SAT		SegaVRAM + $3F00

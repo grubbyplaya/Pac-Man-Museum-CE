@@ -1,7 +1,7 @@
 
 .ASSUME ADL=1
 SwitchBank:
-.ORG SwitchBank+$D20000
+.ORG SwitchBank+$D40000
 	ld	($D2FFFF), a
 	sub	3
 	ret.sis c
@@ -51,11 +51,11 @@ _:	push	af
 	mlt	de
 
 	ld	bc, Bank03
-	add	hl, bc	;HL = ROM bank header
+	add	hl, bc	; HL = ROM bank header
 	ex	de, hl
 	ld	bc, Bank3_Address
 	add	hl, bc	
-	ex	de, hl	;DE = bank address holder
+	ex	de, hl	; DE = bank address holder
 
 	push	de
 	call	Mov9ToOP1
@@ -65,7 +65,7 @@ _:	push	af
 	jp.sis	c, $F000
 
 	ld	(StoreBankAddress+1), de
-	ld	de, $0013	;offset HL into actual data
+	ld	de, $0013	; offset HL into actual data
 	add	hl, de
 StoreBankAddress:
 	ld	(0), hl
