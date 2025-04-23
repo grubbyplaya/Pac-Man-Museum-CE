@@ -27,12 +27,15 @@
 #define ramStart		$D00000
 #define tempSP			$D0053F
 #define ScrapMem		$D02AD7
+#define usbInited		$D177B7
 
 ; safeRAM
+#define appData			$D00429
 #define pixelShadow		$D03200
 #define cmdPixelShadow		$D07396
 #define plotSScreen		$D09466
 #define saveSScreen		$D0EA1F
+#define usbArea			$D13FD8
 
 #define VRAM 			$D40000
 #define VRAMEnd			VRAM+((320*240)*2)

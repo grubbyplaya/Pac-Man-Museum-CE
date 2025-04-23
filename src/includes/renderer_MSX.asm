@@ -30,51 +30,73 @@ DrawScreen:
 .ASSUME ADL=1
 
 DrawScreenMap:
-	xor	a
-	ld	ixh, a				; x position of tile (in tiles)
-	ld	ixl, a				; y position (in tiles)
 	ld	hl, ScreenMap
 	ld	de, TilemapCache
 	ld	bc, 32*24
+
 _:	push	bc
 	push	de
+	push	hl
+
 	ld	a, (de)
 	cp	(hl)
 	call	nz, DrawScreenMap_Tiles
+	call	IncTileCoords
 
-_:	inc	ixh				; update counters
-	ld	a, 32
-	cp	ixh
-	jr	nz, +_
-	ld	ixh, $00
-	inc	ixl
-
-_:	pop	de
+	pop	hl
+	pop	de
 	pop	bc
+
 	inc	hl
 	inc	de
 	dec	bc
 	ld	a, b
 	or	c
-	jr	nz, ---_
+	jr	nz, -_
+
+	; clear tile coords
+	ld	hl, 0
+	ld	(TileCoords), hl
+
 	call	CacheScreenMap
 	ret.sis
 
+IncTileCoords:
+	; inc the tile column
+	ld	hl, TileCoords
+	inc	(hl)
+
+	; if we're haven't finished the row, bail out
+	ld	a, 32
+	cp	(hl)
+	ret	nz
+
+	; go to next tile row
+	ld	(hl), 0
+	inc	hl
+	inc	(hl)
+	ret
+
+TileCoords:
+	;   X, Y
+	.db 0, 0
+
+TileColor:
+	.db 0
+
 DrawScreenMap_Tiles:
-	xor	a
-	ld	(romStart + $DE06), a			; reset the SAT drawing flag
 	ld	de, DrawBlackPixel
 	ld	(DrawPixelJump+1), de
 
 	ld	de, SegaTileFlags
-	ld	a, (hl)
-	ld	e, a
+	ld	e, (hl)
 	ld	a, (de)
 	or	a
 	jp	nz, DrawCachedTile
+
 	inc	a
 	ld	(de), a
-	
+
 	ld	a, (hl)
 	push	af
 	call	GetTilePointer
@@ -96,21 +118,21 @@ DrawScreenMap_Tiles:
 	rrca
 	rrca
 	rrca
+	ld	ix, TileColor
+	ld	(ix), a
 	pop	hl
 	
 	call	ConvertTileTo8bpp
+
 DrawScreenMap_Epilogue:
 	; reset self-modifying code
-	ld	hl, (romStart + $DD00)
 	ld	de, DontDrawPixel
 	ld	(DrawPixelJump+1), de
 	ret
 
 GetTilePointer:		; makes HL a pointer to the selected tile
-	ld	a, (hl)
-	push	hl
+	ld	l, (hl)
 	ld	h, 8
-	ld	l, a
 	mlt	hl
 
 	ld	de, PatternGen
@@ -127,30 +149,33 @@ GetTilePointer:		; makes HL a pointer to the selected tile
 	push	hl
 	pop	iy		; IY = BG tile cache
 	ex	de, hl
-	pop	bc
-	ld	(romStart + $DD00), bc
 	ret
 	
 GetTileCoordinates:
-	exx
-	ld	l, $08
-	ld	a, ixl
-	ld	h, a
-	mlt	hl		; HL has the Y coordinate
+	ld	ix, TileCoords
+	push	hl
 
+	; set L to the Y position
+	ld	l, $08
+	ld	h, (ix + 1)
+	mlt	hl
+
+	; set E to the X position
 	ld	e, $08
-	ld	a, ixh
-	ld	d, a
-	mlt	de		; DE has the X coordinate
+	ld	d, (ix)
+	mlt	de
 	
+	; convert to a 16-bit offset
 	ld	h, l
 	ld	l, e
 
+	; set DE to the tile's screen position
 	ld	de, ScreenPTR
 	add	hl, de
-	push	hl		; DE has the tile's coordinate
-	exx
-	pop	de
+	ex	de, hl
+
+	; restore HL, exit
+	pop	hl
 	ret
 
 CacheScreenMap:
@@ -176,81 +201,79 @@ _:	ld	bc, 8
 	jp	DrawScreenMap_Epilogue
 
 DrawSAT:	; draws all the sprites, from most to least significant
-	call	SaveSpriteBG	; save the stuff behind the sprite
-	ld	a, 1
-	ld	(romStart + $DE06), a
-	ld	ix, SAT		; y position
-	ld	iy, SegaTileCache + $4000
-	ld	b, $20		; number of SAT entries
+	call	SaveSpriteBG	; save the pixels behind the sprites
 
-_:	ld	h, (ix)
+	; set the sprite length to 16
+	ld	a, 16
+	ld	(SpriteLength), a
+
+	; point IX to the SAT table
+	ld	ix, SAT
+	ld	iy, SegaTileCache + $4000
+
+	; set B to the # of SAT entries (32)
+	ld	b, 32
+
+DrawSAT_Loop:
+	ld	h, (ix)
 	ld	a, 208
 	cp	h		; is the sprite's Y position 208?
 	ret.sis	z		; stop rendering SAT if so
 
-	; is the sprite off-screen?
+	push	bc
+
+	; skip if the Y coords are out of bounds
 	ld	a, 175
 	cp	h
-	jr	c, +_		; skip this sprite
-	ld	a, (ix+1)
+	jr	c, +_
+
+	; skip if the same applies to the X coords
+	ld	a, (ix + 1)
 	cp	9
-	jr	c, +_		; check if the same applies to Y coords
+	jr	c, +_
 
-	; draw the top-left corner of the sprite
-	ld	a, (ix+1)
-	call	SetSpriteCoords	; set sprite coordinates
-	ex	de, hl		; HL now points to the tile's top-left corner
-	ld	l, (ix+2)
-	call	SetSpritePTR
+	; draw the left half of the sprite
+	xor	a
+	ld	bc, 0
+	call	DrawSpriteStrip
 
-	; draw the bottom-left corner of the sprite
-	ld	a, (ix)
-	add	a, 8
-	ld	h, a
-	ld	a, (ix+1)
-	call	SetSpriteCoords	; set sprite coordinates
-	ex	de, hl		; HL now points to the tile's bottom-left corner
-	ld	l, (ix+2)
-	inc	l
-	call	SetSpritePTR
+	; draw the right half of the sprite
+	ld	a, 8
+	ld	bc, 2
+	call	DrawSpriteStrip
 
-	; draw the top-right corner of the sprite
-	ld	h, (ix)
-	ld	a, (ix+1)
-	add	a, 8
-	call	SetSpriteCoords	; set sprite coordinates
-	ex	de, hl		; HL now points to the tile's top-right corner
-	ld	l, (ix+2)
-	inc	l
-	inc	l
-	call	SetSpritePTR
+	; loop to next sprite
+_:	lea	ix, ix + 4
+	pop	bc
+	djnz	DrawSAT_Loop
 
-	; draw the bottom-right corner of the sprite
-	ld	a, (ix)
-	add	a, 8
-	ld	h, a
-	ld	a, (ix+1)
-	add	a, 8
-	call	SetSpriteCoords	; set sprite coordinates
-	ex	de, hl		; HL now points to the tile's bottom-right corner
-	ld	l, (ix+2)
-	inc	l
-	inc	l
-	inc	l
-	call	SetSpritePTR
-
-_:	lea	ix, ix+4	; point IX to the next entry
-	djnz	--_
+	ld	a, 8
+	ld	(SpriteLength), a
 	ret.sis
 
+DrawSpriteStrip:	; IN: A = strip offset, BC = tile offset
+	; A = sprite's X coords
+	add	a, (ix + 1)
+	call	SetSpriteCoords
+	ex	de, hl
+
+	; L = sprite tile
+	ld	l, (ix + 2)
+	add	hl, bc
+	call	SetSpritePTR
+	ret
+
 SetSpriteCoords:
+	ld	h, (ix)
+CalcSpriteCoords:
 	; clear HLU
 	ld	de, 0
 	add.sis	hl, de
 
+	; HL = sprite's screen position
 	ld	l, a
-	ld	de, ScreenPTR	; first scanline to be updated
-	add	hl, de		; HL = tile coords
+	ld	de, ScreenPTR
+	add	hl, de
 	ret
 
 SetSpritePTR:
@@ -260,26 +283,34 @@ SetSpritePTR:
 	ld	de, SpritePTR
 	add	hl, de		; HL now points to the specified tile
 	pop	de		; DE has the tile's coordinates
-	ld	a, (ix+3)
-	call	ConvertTileTo8bpp
-	ret
 
+	; IX now points to the sprite color
+	lea	ix, ix + 3
+	call	ConvertTileTo8bpp
+	lea	ix, ix - 3
+	ret
 
 SaveSpriteBG:
 	; calc where we should save the BG
 	ld	b, 8
 	ld	ix, SAT
-_:	exx
-	ld	h, (ix)
-	ld	a, (ix+1)
+
+SaveSpriteBG_Loop:
+	ld	a, (ix)
+	cp	$D0
+	ret	z
+
+	push	bc
+	ld	a, (ix + 1)
 	call	SetSpriteCoords
+	ex	de, hl
+
 	ld	a, ixl
 	rrca
 	rrca
-	ld	e, a
-	ld	d, 129
-	mlt	de
-	ex	de, hl
+	ld	l, a
+	ld	h, 129
+	mlt	hl
 	add	hl, hl
 	ld	bc, TempSpriteBuffer
 	add	hl, bc
@@ -288,7 +319,7 @@ _:	exx
 	ld	a, (ix)	
 	ld	(hl), a
 	inc	hl
-	ld	a, (ix+1)
+	ld	a, (ix + 1)
 	ld	(hl), a
 	inc	hl
 	ex	de, hl
@@ -300,39 +331,47 @@ _:	ld	bc, 16
 	add	hl, bc
 	dec	a
 	jr	nz, -_
-	exx
-	lea	ix, ix+4
-	djnz	--_
+
+	pop	bc
+	lea	ix, ix + 4
+	djnz	SaveSpriteBG_Loop
 	ret
 
 PartialRedraw:
 	xor	a
-_:	push	af
+PartialRedrawLoop:
+	push	af
+
+	; point HL to the BG portion
 	ld	l, a
 	ld	h, 129
 	mlt	hl
 	add	hl, hl
 	ld	de, TempSpriteBuffer
-	add	hl, de			; HL = location of BG portion in RAM
+	add	hl, de
 
+	; get the BG portion's screen position
 	push	hl
-	; A = X coord
+	; A = Y coord
 	ld	a, (hl)
+	cp	192
+	jr	nc, PartialRedraw_LoopBack
+
 	inc	hl
-	; L = Y coord
+	; L = X coord
 	ld	l, (hl)
 	ld	h, a
 	ld	a, l
-	or	a
-	; skip if both coords are 0
-	jr	z, +++_
 
-	call	SetSpriteCoords
-	ex	de, hl			; DE = where we're gonna copy the portion to
+	call	CalcSpriteCoords
+	; DE = BG portion screen position
+	ex	de, hl
+
 	pop	hl
 	inc	hl
 	inc	hl
 
+	; draw the cached BG portion
 	ld	a, 16
 _:	ld	bc, 16
 	ldir
@@ -342,20 +381,22 @@ _:	ld	bc, 16
 	ex	de, hl
 	dec	a
 	jr	nz, -_
+
 _:	pop	af
 	inc	a
 	cp	8
-	jr	nz, ---_
+	jr	nz, PartialRedrawLoop
 	ret.sis
 
-_:	pop	hl
-	jr	--_
+PartialRedraw_LoopBack:
+	pop	hl
+	jr	-_
 
 ; =============================================================================
 ; 	In:
 ; 	HL	- Pointer to pattern.
 ; 	DE	- Position of tile.
-; 	A	- Tile's color
+; 	(IX)	- Tile's color.
 ; 	ld:
 ; 	None.
 ; 	Destroys:
@@ -363,27 +404,23 @@ _:	pop	hl
 ; -----------------------------------------------------------------------------
 
 ConvertTileTo8bpp:
+SpriteLength = $+1
 	ld	c, $08
-_:	push	af
-	call	ConvertPixelRow
+_:	call	ConvertPixelRow
 	push	hl
 	ex	de, hl
-SetScanlineSkip:
 	ld	de, 256 - 8
 	add	hl, de
 	ex	de, hl
 	pop	hl
-	pop	af
 	dec	c
 	jr	nz, -_
 	ret
-	
 
 ConvertPixelRow:		; converts pixels from a 1bpp to a nybble
 	push	hl
 	exx
 	pop	hl
-	and	$0F
 	ld	e, $08
 	ld	b, (hl)
 
@@ -391,6 +428,7 @@ _:	rlc	b
 	exx
 DrawPixelJump:
 	jp	nc, DontDrawPixel
+	ld	a, (ix)
 	ld	(de), a
 	ld	(iy), a
 DontDrawPixel:
@@ -418,8 +456,6 @@ ClearTileFlags:
 	ld	(hl), $00
 	ldir
 	ret.sis
-
-#include "src/includes/spi.asm"
 
 Draw8bppTileEnd:
 .ORG	Draw8bppTileEnd-romStart

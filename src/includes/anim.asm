@@ -138,8 +138,8 @@ PacAnimTiming:		; animation for Mr and Ms. Pac-Man
 	.db $FE, $04	; jump to the fourth indice
 
 GhostAnimTiming:	; animation for inky, blinky, pinky, and clyde
-	.db $03, $01
-	.db $03, $02
+	.db $08, $01
+	.db $08, $02
 	.db $FE, $03
 
 PookaAnimTiming:

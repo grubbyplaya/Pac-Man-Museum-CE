@@ -1,4 +1,3 @@
-Arcade
 src/includes/gfx/sprites/*.bin
 src/includes/gfx/logos/*.bin
 src/includes/gfx/font/*.bin
@@ -8,3 +7,4 @@ src/includes/gfx/misc/*.bin
 gfx.txt
 src/usb_routines.asm
 /src/PacAttack
+/src/Arcade/RenderTests

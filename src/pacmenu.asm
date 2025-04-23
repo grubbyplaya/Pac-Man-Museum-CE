@@ -28,10 +28,15 @@ Icon:
 	.db "Pac-Man Museum CE",0
 
 START:
-	ld	(cursorImage), sp
+	ld	(appData), sp
 	call	EasterEgg_CheckAns
 JumpToLauncher:
 	di
+
+	; make 14K of RAM safe to use
+	xor	a
+	ld	(usbInited), a
+
 	; clear palette
 	ld	hl, mpLcdPalette
 	ld	de, mpLcdPalette+1
@@ -163,12 +168,22 @@ LoadGame:
 	add	hl, bc
 	pop	bc
 
+	cp	$80
+	jr	z, LoadGame_Arcade
 	cp	$83
 	jr	z, LoadGame_MSX
 	cp	$84
 	jr	z, LoadGame_TI
 	cp	$85
 	jr	z, LoadGame_Sega
+
+LoadGame_Arcade:
+	ld	de, romStart
+	ldir
+	
+	call	SetArcadeSPI
+
+	jp.sis	$0000
 
 LoadGame_Sega:	; load Game Gear or Master System game
 	; load game into RAM
@@ -667,7 +682,7 @@ CenterText:	; DE = text position on screen
 	ret
 
 ExitGame:
-	ld	sp, (CursorImage)
+	ld	sp, (appData)
 	ld	a, $D0
 	ld	mb, a
 	ld	hl, $F00004
@@ -686,7 +701,7 @@ ExitGame:
 	ret
 
 ExitGameSIS:	; return to launcher from selected game
-	ld.lil	sp, (CursorImage)
+	ld.lil	sp, (appData)
 	jp.lil	JumpToLauncher
 
 WaitAFrame:
@@ -721,14 +736,17 @@ FrameCounter:
 	.db $00
 
 Headers:	; headers for each game
+	.dl PacManArcadeHeader
 	.dl PacManGGHeader
 	.dl MSXHeader
 	.dl AtariPacHeader
 	.dl MsPacMSHeader
 	.dl SuperPacHeader
 
-#define CurrentGameCount	4
+#define CurrentGameCount	5
 
+PacManArcadeHeader:
+	.db $15, "PacArc",0
 PacManGGHeader:
 	.db $15, "PacGG",0
 MSXHeader:

@@ -20,11 +20,9 @@ SPI_TMS9918:
 	.db 2, $B5, $80	
 
 SPI_Arcade:
-	.db 3	; # of SPI cmds
+	.db 2	; # of SPI cmds
 	; set horizontal resolution to 256 (centered)
 	.db 5, $2A, 0, 32, (287 >> 8), (287 & $FF)
-	; set visible area to the center 224 pixels
-	.db $30, 0, 48, (271 >> 8), (271 & $FF)
 	; set undrawn areas to black
 	.db 2, $B5, $80	
 
