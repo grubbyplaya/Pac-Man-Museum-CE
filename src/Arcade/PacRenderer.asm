@@ -1,9 +1,27 @@
 .ASSUME ADL=1
 
-DrawTilemap:
-	ld	ix, Tilemap + $40
-	ld	iy, ColorTable + $40
-	ld	hl, PrevTilemap + $40
+DrawMainTilemap:
+	ld	bc, $0040
+	call	SetMainCoords
+	jr	DrawTiles
+
+DrawHUDTilemap:
+	ld	bc, $03C2
+	call	SetHUDCoords
+	jr	DrawTiles
+
+DrawLivesTilemap:
+	ld	bc, $0002
+	call	SetLivesCoords
+	jr	DrawTiles
+
+DrawTiles:
+	ld	ix, Tilemap
+	add	ix, bc
+	ld	iy, ColorTable
+	add	iy, bc
+	ld	hl, PrevTilemap
+	add	hl, bc
 
 	; if the tile hasn't changed between frames, skip it	
 _:	push	hl
@@ -24,13 +42,17 @@ _:	push	hl
 
 	; load C' with the tile palette
 	exx
-	ld	c, (iy)
+	ld	a, (iy)
+	; palette mirroring makes level 256 look "right"
+	and	$1F
+	ld	c, a
 	sla	c
 	sla	c
 	exx
 	call	DrawTile
 
 	; inc tile pointers
+TileCoordsPTR = $+1
 _:	call	IncTileCoords
 	pop	hl
 	inc	ix
@@ -60,7 +82,8 @@ GetTileCoords:
 	ld	d, a
 
 	; DE = tile's screen coords
-	ld	hl, ScreenPTR + 16 + (256 * 16)
+TileOffset = $+1
+	ld	hl, ScreenPTR + 16 + (16*256)
 	add	hl, de
 	ex	de, hl
 	ret
@@ -79,17 +102,75 @@ IncTileCoords:
 	; dec X coordinate, go to next column
 	dec	hl
 	dec	(hl)
+
+	; are we done?
 	ld	a, (hl)
 	cp	$FF
 	ret	nz
 
 	; bail out
 	inc	b
+	ret
 
+IncHUDCoords:
+	ld	b, 0
+	ld	hl, TileCoords
+
+	; dec X coordinate
+	dec	(hl)
+	ld	a, (hl)
+	cp	$FF
+	ret	nz
+
+	ld	bc, 4
+	add	ix, bc
+	add	iy, bc
+
+	; inc Y coordinate, go to next row
+	ld	(hl), 27
+	inc	hl
+	inc	(hl)
+
+	; are we done?
+	ld	a, (hl)
+	cp	3
+	ret	nz
+
+	; bail out
+	inc	b
+	ret
+
+SetMainCoords:
+	ld	hl, TileCoords
+	ld	(hl), 27
+	inc	hl
+	ld	(hl), 0
+
+	ld	hl, IncTileCoords
+	ld	(TileCoordsPTR), hl
+
+	ld	hl, ScreenPTR + 16 + (16*256)
+	ld	(TileOffset), hl
+	ret
+
+SetHUDCoords:
+	ld	hl, ScreenPTR + 16
+	ld	(TileOffset), hl
+
+SetHUDCoords_Merge:
+	ld	hl, IncHUDCoords
+	ld	(TileCoordsPTR), hl
+
+	ld	hl, TileCoords
 	ld	(hl), 27
 	inc	hl
 	ld	(hl), 0
 	ret
+
+SetLivesCoords:
+	ld	hl, ScreenPTR + 16 + (272*256)
+	ld	(TileOffset), hl
+	jr	SetHUDCoords_Merge
 
 TileCoords:
 	.db 27, 0
@@ -126,9 +207,9 @@ _:	ld	a, (hl)
 	ret
 
 DrawSprites:
-	ld	ix, CoordsTable
-	ld	iy, SpriteTable
-	ld	b, 8
+	ld	ix, CoordsTable + 2
+	ld	iy, SpriteTable + 2
+	ld	b, 6
 
 DrawSprites_Loop:
 	push	bc
@@ -174,8 +255,8 @@ DrawSprites_Loop:
 	dec	a
 	call	z, DrawSprite_XYFlip
 
-_:	lea	ix, ix+2
-	lea	iy, iy+2
+_:	lea	ix, ix + 2
+	lea	iy, iy + 2
 	pop	bc
 	djnz	DrawSprites_Loop
 	ret
@@ -189,10 +270,9 @@ GetSpriteCoords:	; also checks sprite bounds
 	sub	a, (ix + 0)	; A = X pos
 
 	; bail out if the sprite's hidden
-	or	a
-	ret	z
 	cp	240 - 1
 	ret	nc
+
 	inc	c
 
 	; L = X pos
@@ -348,13 +428,13 @@ _:	push	bc
 
 	pop	af
 	inc	a
-	cp	8
+	cp	7
 	jr	nz, --_
 	ret
 
 SaveSpriteBG:
 	; calc where we should save the BG
-	ld	b, 8
+	ld	b, 7
 	ld	ix, CoordsTable + $0E
 
 _:	push	bc

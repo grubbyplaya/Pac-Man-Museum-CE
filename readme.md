@@ -1,14 +1,18 @@
 ![](https://github.com/grubbyplaya/Pac-Man-Museum-CE/blob/main/pacbanner.png?raw=true)
 
-Pac-Man Museum CE is a collection of Pac-Man console ports for the TI-84+ CE. The ideal goal of this project is to include every single official version of a Pac-Man game that has been released on a Z80-based system. 
+Pac-Man Museum CE is a collection of Pac-Man ports for the TI-84+ CE. The ideal goal of this project is to include every single official version of a Pac-Man game that has been released on a Z80-based system. 
 
 # Games Included
+
+Pac-Man (Arcade) - May 22, 1980
 
 Pac-Man (Game Gear) - January 29, 1991
 
 Pac-Man (MSX) - 1984
 
 Pac-Man (ColecoVision) - c. 1983
+
+Ms. Pac-Man (Arcade) - Feburary 3, 1982
 
 Ms. Pac-Man (Master System) - December 1992
 
@@ -26,11 +30,19 @@ Pac-Attack (Game Gear) - June 1994
 
 Arrow Keys: Control Pac-Man
 
-2nd: Open Game (Menu Only)
+2nd: Open Game (Menu Only) / 1 button (SMS Ms. Pac-Man)
+
+Alpha: 2 button (SMS Ms. Pac-Man)
 
 Mode: Start/Pause Button
 
-Clear: Exit Game
+5: Insert coin (Arcade Games)
+
+Zoom: Enable speedup chip (Arcade Games)
+
+Del: Reset Game / Disable speedup chip (Arcade Games)
+
+Clear: Return to the menu (hold down for 1 second)
 
 # Building
 

@@ -909,8 +909,12 @@ LABEL_8B1D:
 
 ; Data from 8B2C to 8B40 (21 bytes)
 DATA_8B2C:
-	.db $53, $6C, $2C, $06, $53, $86, $30, $0D, $53, $60, $2C, $07, $53, $96, $30, $09
-	.db $83, $7C, $00, $0A, $D0
+	.db $53, $6C, $2C, $06
+	.db $53, $86, $30, $0D
+	.db $53, $60, $2C, $07
+	.db $53, $96, $30, $09
+	.db $83, $7C, $00, $0A
+	.db $D0
 
 LABEL_8B41:
 	call LABEL_BB11
@@ -2247,11 +2251,11 @@ LABEL_950A:
 	jr z, LABEL_952B
 	ld a, (iy+0)
 	cp $53
-	jr nz, _LABEL_9525_
+	jr nz, LABEL_9525
 	res 6, (ix+0)
 	jp LABEL_97F0	; Possibly invalid
 	
-_LABEL_9525_:	
+LABEL_9525:	
 	ld (ix+1), $04
 	jp LABEL_94EE	; Possibly invalid
 
@@ -2655,7 +2659,7 @@ LABEL_97C3:
 	jp LABEL_9562
 
 LABEL_97D7:
-	ld hl, $CC43
+	ld hl, $7C43
 	ld a, (iy+1)
 	cp h
 	jp nz, LABEL_988D
@@ -2666,7 +2670,7 @@ LABEL_97D7:
 	pop af
 	jp LABEL_950A
 
-LABEL_97F0:	
+LABEL_97F0:
 	res 5, (ix+0)
 	set 7, (ix+0)
 	ld a, (ix+17)
@@ -2754,7 +2758,7 @@ LABEL_988D:
 	call LABEL_9061
 	or c
 	ld c, a
-	ld hl, $CC43
+	ld hl, $7C43
 	ld a, (iy+1)
 	cp $2C
 	jr z, LABEL_98BC
@@ -5047,6 +5051,8 @@ LABEL_A95A:
 	ld a, 8
 	ld.lil (mpLcdIcr), a
 
+	call.lil CheckForExit
+
 	ld hl, FrameCounter
 	inc (hl)
 
@@ -5109,11 +5115,11 @@ LABEL_A9A5:
 	jr LABEL_A98D
 
 LABEL_A9BE:	; check for star key
-	ld.lil a, (KbdG6)
-	bit kbitClear, a
-	jp nz, $F000
-	bit kbitMul, a
+	; the star key is mapped to DEL
+	ld.lil a, (KbdG1)
+	bit kbitDel, a
 	jr z, LABEL_A98D
+
 	ld a, ($C0CC)
 	bit 6, a
 	jp z, LABEL_803B
@@ -5450,8 +5456,10 @@ DATA_AC0F:
 
 LABEL_AC26:
 	push hl
+	push de
 	ld.lil de, SegaVRAM
 	add.lil hl, de
+	pop de
 	ld e, a
 LABEL_AC2F:
 	ld a, e

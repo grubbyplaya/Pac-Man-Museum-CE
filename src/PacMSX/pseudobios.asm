@@ -6,40 +6,53 @@ SNSMAT:	; basically GetKey for MSX
 	jr	z, SNSMAT_7
 	xor	a
 
-	; check for arrow keys
-	push	hl
-	ld.lil	hl, KbdG7
-	ld.lil	c, (hl)
-	bit	kbitLeft, c
+	exx
+	push	ix
+	ld	ix, MSX_KeyMappings
+	ld.lil	de, kbdG1
+	ld	bc, $08FF
+	ld	hl, 1
+
+	; set DE to the key column to be read
+_:	ld	e, (ix)
+	ld.lil	a, (de)
+	; skip if the button isn't pressed
+	and	(ix + 1)
 	jr	z, +_
-	set	4, a
-_:	bit	kbitUp, c
-	jr	z, +_
-	set	5, a
-_:	bit	kbitDown, c
-	jr	z, +_
-	set	6, a
-_:	bit	kbitRight, c
-	jr	z, +_
-	set	7, a
-_:	ld.lil	hl, KbdG1
-	bit.lil	kbitMode, (hl)
-	jr	nz, +_
-	ld.lil  hl, kbdG3
-	bit.lil	kbit0, (hl)
-	jr	nz, +_
-	jr	z, ++_
-_:	set	0, a
-_:	pop	hl
-	cpl
+
+	; clear the corresponding bit
+	ld	a, c
+	xor	l
+	ld	c, a
+
+	; go to next column
+_:	add	hl, hl
+	lea	ix, ix + 2
+	djnz	--_
+	ld	a, c
+
+	pop	ix
+	exx
 	ret
 
 SNSMAT_7:
-	ld.lil	a, (KbdG6)
-	bit	kbitClear, a
-	jp	nz, ExitGame
+	call.lil CheckForExit
 	ld	a, $FF
 	ret
+
+#macro keyMap(column, key)
+	.db column & $FF, key
+#endmacro
+
+MSX_KeyMappings:
+	keyMap(kbdG1, kbdMode)	; space key
+	keyMap(0, 0)		; unmapped
+	keyMap(0, 0)		; unmapped
+	keyMap(0, 0)		; unmapped
+	keyMap(kbdG7, kbdLeft)	; left arrow
+	keyMap(kbdG7, kbdUp)	; up arrow
+	keyMap(kbdG7, kbdDown)	; down arrow
+	keyMap(kbdG7, kbdRight)	; right arrow
 
 READVDP:
 	ld.lil	a, (mpLcdRis)

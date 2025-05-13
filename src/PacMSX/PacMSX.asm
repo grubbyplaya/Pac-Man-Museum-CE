@@ -1,6 +1,5 @@
 .ASSUME ADL=0
 
-#define ExitGame $F000
 #define PatternGen	SegaVRAM + $2000
 #define ColorTable	SegaVRAM + $3F80
 #define SpritePTR	SegaVRAM + $1800
@@ -212,14 +211,14 @@ LABEL_198:
 	; call BIOS_0093
 LABEL_1B5:
 	di
+	ld a, (FrameCounter)
+	rrca
+	call nc, DrawScreen
 	ei
 LABEL_1BB:
 	jp LABEL_1BB
 
 LABEL_1BE:
-	ld a, (FrameCounter)
-	rrca
-	call nc, DrawScreen
 
 	ld sp, $F000
 	call READVDP
@@ -3748,7 +3747,9 @@ ClearRedrawCaches:
 	ld.lil hl, TilemapCache
 	ld.lil de, TilemapCache+1
 	ld bc, $0300
-	ld.lil (hl), $00
+	; tile 0 isn't blank. it's the cherry's top-left corner.
+	; use tile $FF instead
+	ld.lil (hl), $FF
 	ldir.lil
 	pop de
 	ret

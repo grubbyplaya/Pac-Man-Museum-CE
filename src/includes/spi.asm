@@ -10,29 +10,58 @@ SetDefaultSPI:
 	ld	de, SPI_Default
 	jp	SpiLoop
 
+FlipScreenSPI:
+	ld	de, SPI_FlipY
+	jp	SpiLoop
+
+UnflipScreenSPI:
+	ld	de, SPI_Unflip
+	jp	SpiLoop
+
 SPI_TMS9918:
-	.db 3	; # of SPI cmds
+	.db 5	; # of SPI cmds
 	; set horizontal resolution to 256 (centered)
 	.db 5, $2A, 0, 32, (287 >> 8), (287 & $FF)
 	; set vertical resolution to 192 (centered)
 	.db 5, $2B, 0, 24, 0, 215
+        ; set visible area to the center 224 pixels
+	.db 5, $30, 0, 40, (287 >> 8), (287 & $FF)
 	; set undrawn areas to black
-	.db 2, $B5, $80	
+	.db 2, $B5, $80
+        ; enable partial mode
+	.db 1, $12
 
 SPI_Arcade:
-	.db 2	; # of SPI cmds
+	.db 4	; # of SPI cmds
 	; set horizontal resolution to 256 (centered)
 	.db 5, $2A, 0, 32, (287 >> 8), (287 & $FF)
+        ; set visible area to the center 224 pixels
+	.db 5, $30, 0, 48, (271 >> 8), (271 & $FF)
 	; set undrawn areas to black
-	.db 2, $B5, $80	
+	.db 2, $B5, $80
+        ; enable partial mode
+	.db 1, $12
 
+SPI_FlipY:
+	.db 1
+	.db 2, $36, $C8
+
+SPI_Unflip:
+	.db 1
+	.db 2, $36, $08
 
 SPI_Default:
-	.db 2	; # of SPI cmds
+	.db 5	; # of SPI cmds
+	; unflip screen
+	.db 2, $36, $08
 	; set horizontal resolution to 320
 	.db 5, $2A, 0, 0, (319 >> 8), (319 & $FF)
 	; set vertical resolution to 240
 	.db 5, $2B, 0, 0, 0, 239
+        ; set visible area to all 320 pixels
+	.db 5, $30, 0, 0, (319 >> 8), (319 & $FF)
+        ; disable partial mode
+        .db 1, $13
 
 SpiLoop:	; IN: DE = SPI cmd list
 	; C = number of cmds
@@ -57,14 +86,13 @@ _:	inc	de
 	jr	nz, --_
 	ret
 
-
 ; Input: A = parameter
 spiParam:
 	scf 		; First bit is set for data
 	.db	$30	; jr nc, ? - skips over one byte
 ; Input: A = command
 spiCmd:
-	or	a, a ; First bit is clear for commands
+	or	a	; First bit is clear for commands
 	ld	hl, $F80818
 	call	spiWrite
 	ld	l, h

@@ -12,6 +12,11 @@ DrawScreen:
 
  .org	$D40000 + DrawScreen
 
+	; busywait until the LCD's updated
+_:	ld.lil a, (mpLcdUPCURR + 1)
+	cp ((ScreenPTR + $C000) >> 8) & $FF	; = 192 scanlines have been drawn
+	jr nz, -_
+
 	; do some partial redraw stuff
 	call.lil PartialRedraw
 
@@ -30,6 +35,9 @@ DrawScreen:
 .ASSUME ADL=1
 
 DrawScreenMap:
+	ld	a, 8
+	ld	(SpriteLength), a
+
 	ld	hl, ScreenMap
 	ld	de, TilemapCache
 	ld	bc, 32*24

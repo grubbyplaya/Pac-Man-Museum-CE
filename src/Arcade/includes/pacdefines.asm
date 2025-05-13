@@ -4,6 +4,8 @@
 #define SpriteROM TileROM + $4000
 #define TempSpriteBuffer SpriteROM + $4000
 
+#define DrawTilemapFlag $E000
+
 #define ScreenPTR romStart + $10000
 
 #define Tilemap    romStart + $4000

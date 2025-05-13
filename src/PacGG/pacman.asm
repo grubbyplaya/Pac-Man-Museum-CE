@@ -172,9 +172,7 @@ _:	or c
 	xor a
 	ld ($C100), a
 
-	ld.lil a, (KbdG6)
-	bit kbitClear, a
-	call nz, $F000
+	call.lil CheckForExit
 
 	ld.lil	hl, $E30028
 	ld.lil	(hl), $08
@@ -257,6 +255,7 @@ LABEL_F0:
 LABEL_1AB:
 	di
 	call UpdateTiles
+
 	ld hl, FrameCounter
 	inc (hl)
 	ld a, (hl)

@@ -6049,9 +6049,9 @@ LABEL_42ED:
 	bit kbitMode, a
 	jp nz, LABEL_66
 	ld (PausedGame), a
-	ld.lil a, (KbdG6)
-	bit kbitClear, a
-	jp nz, $F000
+
+	call.lil CheckForExit
+
 	xor a
 	ld ($DF03), a
 	ret
@@ -9318,13 +9318,6 @@ LABEL_5D95:
 	ld ($DA52), a
 	ld a, ($D746)
 	ld ($DA97), a
-	ret
-
-ToggleSpriteBG:
-	ld hl, (TransPixelIndex + 1) - romStart
-	ld a, $40
-	xor (hl)
-	ld (hl), a
 	ret
 
 LABEL_5DAD:

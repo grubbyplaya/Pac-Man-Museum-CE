@@ -1,135 +1,138 @@
-PacManLeftAnim:
+PacManLeftSprites:
+	.dl RegularAnim
 	.dl PacAnimTiming	; animation to loop
-	.db $00
-PacManLeftAnimLoop:
+PacManLeftSpriteLoop:
 	.dl PacManLeft1
 	.dl PacManClosed
 	.dl PacManLeft2
-	.dl PacManLeftAnimLoop
+	.dl PacManLeftSpriteLoop
 
-MsPacManLeftAnim:
-	.dl PacAnimTiming	
-	.db $00
-MsPacManLeftAnimLoop:
+MsPacManLeftSprites:
+	.dl RegularAnim
+	.dl PacAnimTiming
+MsPacManLeftSpriteLoop:
 	.dl MsPacManLeft1
 	.dl MsPacManClosed
 	.dl MsPacManLeft2
-	.dl MsPacManLeftAnimLoop
+	.dl MsPacManLeftSpriteLoop
 
-SuperPacManLeftAnim:
-	.dl PacAnimTiming	; animation to loop
-	.db $02
-SuperPacManLeftAnimLoop:
+SuperPacManLeftSprites:
+	.dl SuperPacAnim
+	.dl PacAnimTiming
+SuperPacManLeftSpriteLoop:
 	.dl SuperPacLeft1
 	.dl SuperPacClosed
 	.dl SuperPacLeft2
-	.dl SuperPacManLeftAnimLoop
+	.dl SuperPacManLeftSpriteLoop
 
-BlinkyLeftAnim:
+BlinkyLeftSprites:
+	.dl RegularAnim
 	.dl GhostAnimTiming
-	.db $00
-BlinkyLeftAnimLoop:
+BlinkyLeftSpriteLoop:
 	.dl BlinkyLeft1
 	.dl BlinkyLeft2
-	.dl BlinkyLeftAnimLoop
+	.dl BlinkyLeftSpriteLoop
 
-PinkyLeftAnim:
+PinkyLeftSprites:
+	.dl RegularAnim
 	.dl GhostAnimTiming
-	.db $00
-PinkyLeftAnimLoop:
+PinkyLeftSpriteLoop:
 	.dl PinkyLeft1
 	.dl PinkyLeft2
-	.dl PinkyLeftAnimLoop
+	.dl PinkyLeftSpriteLoop
 
-InkyLeftAnim:
+InkyLeftSprites:
+	.dl RegularAnim
 	.dl GhostAnimTiming
-	.db $00
-InkyLeftAnimLoop:
+InkyLeftSpriteLoop:
 	.dl InkyLeft1
 	.dl InkyLeft2
-	.dl InkyLeftAnimLoop
+	.dl InkyLeftSpriteLoop
 
-ClydeLeftAnim:
+ClydeLeftSprites:
+	.dl RegularAnim
 	.dl GhostAnimTiming
-	.db $00
-ClydeLeftAnimLoop:
+ClydeLeftSpriteLoop:
 	.dl ClydeLeft1
 	.dl ClydeLeft2
-	.dl ClydeLeftAnimLoop
+	.dl ClydeLeftSpriteLoop
 
-ScaredGhostAnim:
+ScaredGhostSprites:
+	.dl RegularAnim
 	.dl GhostAnimTiming
-	.db $00
-ScaredGhostAnimLoop:
+ScaredGhostSpriteLoop:
 	.dl ScaredGhost1
 	.dl ScaredGhost2
-	.dl ScaredGhostAnimLoop
+	.dl ScaredGhostSpriteLoop
 
-PookaAnim:
+PookaSprites:
+	.dl RegularAnim
 	.dl PookaAnimTiming
-	.db $00
-PookaAnimLoop:
+PookaSpriteLoop:
 	.dl Pooka1
 	.dl Pooka2
-	.dl PookaAnimLoop
+	.dl PookaSpriteLoop
 
-GalaxAnim:
+GalaxSprites:
+	.dl RegularAnim
 	.dl GalaxAnimTiming
-	.db $00
-GalaxAnimLoop:
+GalaxSpriteLoop:
 	.dl Galax1
 	.dl Galax2
-	.dl GalaxAnimLoop
+	.dl GalaxSpriteLoop
 
-MappyAnim:
+MappySprites:
+	.dl RegularAnim
 	.dl MappyAnimTiming
-	.db $00
-MappyAnimLoop:
+MappySpriteLoop:
 	.dl Mappy1
 	.dl Mappy2
 	.dl Mappy3
-	.dl MappyAnimLoop
+	.dl MappySpriteLoop
 
-SonicAnim:
+SonicSprites:
+	.dl SonicAnim
 	.dl SonicAnimTiming
-	.db $00
-SonicAnimLoop:
+SonicSpriteLoop:
 	.dl Sonic1
 	.dl Sonic2
 	.dl Sonic3
-	.dl SonicAnimLoop
+	.dl SonicSpriteLoop
 
-BlankAnim:
+BlankSprites:
+	.dl RegularAnim
 	.dl BlankAnimTiming
-	.db $00
-BlankAnimLoop:
-	.dl BlankSprite
-	.dl BlankAnimLoop
+BlankSpriteLoop:
+	.dl BlankImg
+	.dl BlankSpriteLoop
 
-Sprite1Pos:
-	.db 304/2, 153	 	; start at 304, 153
-	.db 0, 153		; end at 0, 153
+#macro LOOP(OffsetX, OffsetY)
+	.db $F0, OffsetX, OffsetY
+#endmacro
 
-Sprite2Pos:
-	.db 328/2, 153		; start at 328, 153
-	.db 0, 153		; end at 0, 153
+#macro SETN(value)
+	.db $F2, value
+#endmacro
 
-Sprite3Pos:
-	.db 352/2, 153		; start at 352, 153
-	.db 0, 153		; end at 0, 153
+#macro SETSIZE(size)
+	.db $F4, size
+#endmacro
 
-Sprite4Pos:
-	.db 376/2, 153		; start at 376, 153
-	.db 0, 153		; end at 0, 153
+#macro END
+	.db $FF
+#endmacro
 
-Sprite5Pos:
-	.db 400/2, 153		; start at 400, 153
-	.db 0, 153		; end at 0, 153
+SuperPacAnim:
+	SETSIZE(2)
+RegularAnim:
+	SETN($D4)
+	LOOP(-1, 0)
+	END
 
-Sprite6Pos:
-	.db 424/2, 153		; start at 424, 153
-	.db 0, 153		; end at 0, 153
-
+SonicAnim:
+	SETN($6A)
+	LOOP(-2, 0)
+	END
 
 PacAnimTiming:		; animation for Mr and Ms. Pac-Man
 	.db $02, $01	; hold sprite 1 for 2 frames
@@ -169,7 +172,7 @@ BlankAnimTiming:
 	.db $E0, $01
 	.db $FE, $02	; do nothing
 
-#define BlankSprite plotSScreen
+#define BlankImg plotSScreen
 
 PacManLeftArt:
 PacManLeft1:

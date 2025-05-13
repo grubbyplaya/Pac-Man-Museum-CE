@@ -21,6 +21,7 @@
 #define ChkFindSym		$02050C
 #define ClrLCDFull		$020808
 #define Arc_Unarc		$021448
+#define ResetStatusBar		$021A3C
 #define GetAnsData		$021E70
 #define RealToInt		$021EF4
 
@@ -31,6 +32,7 @@
 
 ; safeRAM
 #define appData			$D00429
+#define textShadow		$D006C0
 #define pixelShadow		$D03200
 #define cmdPixelShadow		$D07396
 #define plotSScreen		$D09466
@@ -46,6 +48,7 @@
 #define mpLcdImsc		$E3001C
 #define mpLcdRis		$E30020
 #define mpLcdIcr		$E30028
+#define mpLcdUPCURR		$E3002C
 #define mpLcdPalette		$E30200
 #define CursorImage		$E30800
 
@@ -53,6 +56,9 @@
 #define spiCtrl1		$04
 #define spiCtrl2		$08
 #define spiIntCtrl		$10
+
+#define CheckForExit		$F000 + romStart
+#define ErrorQuit		$F016 + romStart
 
 #define ScreenPTR		pixelShadow
 #define SegaVRAM		ScreenPTR + (256*192)		; Master System VDP RAM
@@ -205,4 +211,4 @@ kbitUp		= 03
 	ld	h, Height
 	ld	l, Width/2
 	ld	bc, (lcdWidth-Width)/2
-#endmacroy
+#endmacro

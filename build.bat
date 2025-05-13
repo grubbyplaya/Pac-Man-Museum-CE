@@ -15,6 +15,9 @@ spasm64 -E -L src/PacMSX/PacMSX.asm bin/PacMSX.8xv
 echo Building Pac-Man (Coleco Ver.)
 spasm64 -E -L src/ColecoPac/colecopac.asm bin/AtariPac.8xv
 
+echo Building Ms. Pac-Man (Arcade Ver.)
+spasm64 -E -L src/Arcade/mspac.asm bin/MsPacArc.8xv
+
 echo Building Ms. Pac-Man (SMS Ver.)
 spasm64 -E -L src/MSPacMan/MsPacMan.asm bin/MsPacMan.8xv
 

@@ -1,4 +1,3 @@
-
 .ASSUME ADL=1
 SwitchBank:
 .ORG SwitchBank+$D40000
@@ -62,7 +61,7 @@ _:	push	af
  	call	ChkFindSym
 	ex	de, hl
 	pop	de
-	jp.sis	c, $F000
+	jp	c, ErrorQuit
 
 	ld	(StoreBankAddress+1), de
 	ld	de, $0013	; offset HL into actual data

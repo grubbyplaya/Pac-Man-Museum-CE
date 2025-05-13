@@ -5,15 +5,22 @@ DATA_3D00:
     .db "BONUS@PAC;MAN@FOR@@@000@]^_", $2F
     .db $8E, $2F, $80
 
+#define NAMCO $28, $29, $2A, $2B, $2C, $2D, $2E
+
 DATA_3D21:
-    .dw $033A
-    .db $5C, "@1980@MIDWAY@MFG%CO%", $2F
-    .db $83, $2F, $80
+    .dw $02BA
+    .db $5C, "@", NAMCO, "1980", $2F
+    .db $03, $03, $01, $01, $01, $01, $01, $01, $01, $03, $03, $03, $03, $2F, $80
 
 DATA_3D3C:
-    .dw $033D
-    .db $5C, "@1980@MIDWAY@MFG%CO%", $2F
-    .db $83, $2F, $80
+    .dw $025D
+    .db NAMCO, $2F
+    .db $81, $2F, $80
+
+PorterText:
+    .dw $02FC
+    .db "PORTED@BY@GRUBBY", $2F
+    .db $9E, $2F, $80
 
 DATA_3D57:
     .dw $02C5

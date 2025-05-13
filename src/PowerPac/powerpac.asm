@@ -79,10 +79,8 @@ LABEL_205B:
 	rrca
 	call nc, DrawScreen
 
-	push hl
 	ld hl, FrameCounter
 	inc (hl)
-	pop hl
 
 	ei
 _:	ld hl, ($C330)
@@ -105,9 +103,9 @@ _:	ld hl, ($C330)
 
 LABEL_2089:
 	ex af, af'
-	ld.lil a, (KbdG6)
-	bit kbitClear, a
-	jp nz, $F000
+
+	call.lil CheckForExit
+
 	ld a, 8
 	ld.lil (mpLcdIcr), a
 	ld a, $01
@@ -3603,7 +3601,12 @@ LABEL_3EFD:
 	and $07
 	ld (hl), a
 	inc l
+
 	inc (hl)
+	ld a, (hl)
+	and $18
+	call.lil nz, ClearTilemapCache + romStart
+
 	inc l
 	ld a, (hl)
 	inc a
@@ -3643,12 +3646,15 @@ LABEL_3F1F:
 
 	push af
 	push bc
+
 	ld a, (hl)
 	rrca \ rrca \ rrca
+
 	ld hl, MSXPalette
 	ld c, a
 	ld b, 0
 	add hl, bc
+
 	ld hl, (hl)
 	ex de, hl
 	ld.lil hl, CRAM
@@ -3721,6 +3727,17 @@ DATA_3F69:
 MSXPalette:
 	.dw $0000, $0000, $A2C9, $BB2F, $AD5B, $C1DD, $D96A, $337D
 	.dw $ED8B, $7E2F, $670B, $EF30, $1E88, $D996, $6739, $FFFF
+
+ClearTilemapCache:
+	.ASSUME ADL=1
+	exx
+	ld hl, TilemapCache
+	ld de, TilemapCache + 1
+	ld bc, $0300
+	ld (hl), $20
+	ldir
+	exx
+	ret.sis
 
 LABEL_3F6D:
 	ld hl, $C393

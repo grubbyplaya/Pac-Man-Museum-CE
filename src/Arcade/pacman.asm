@@ -11,12 +11,10 @@
 MuseumHeader:
 	.db $80, "Pac-Man (Arcade Ver.)",0
 MuseumIcon:
-#import "src/includes/gfx/logos/gg.bin"
+#import "src/includes/gfx/logos/arcade.bin"
 HeaderEnd:
 
 .org 0
-
-#define DrawTilemapTrig $E000
 
 EntryPoint:     ; $0000
     call.lil Setup + romStart
@@ -286,13 +284,34 @@ _:  call    LABEL_2D0C
     and     a
     jr      z, +_
 
+    ; check for reset
     ld      a, (IN1)
     and     %10000
-    jp      z, EntryPoint
+    jp      z, Reset
+
+    ; check to enable fast hack
+    ld.lil  a, (KbdG1)
+    bit     kbitZoom, a
+    jp      z, +_
+
+    ld      a, 1
+    ld      (FastHackTrig), a
+    jp      Reset
 
 _:  ld      a, 1
     ld      ($5000), a
     ret
+
+Reset:
+    ; if this reset is caused by pressing DEL, 
+    ; reset the fast hack flag. Otherwise,
+    ; (ZOOM caused the reset) don't touch it.
+    ld      a, (IN1)
+    and     %10000
+    jp      nz, LABEL_230B
+
+    ld      (FastHackTrig), a
+    jp      LABEL_230B
 
 LABEL_1DC:  ; updates timers
     ld      hl, $4C84
@@ -691,7 +710,14 @@ LABEL_3DC:
     ret
 
 LABEL_3FE:
+    ; LABEL_2BA1 updates the tilemap every frame, even when it's unnecessary. 
+    ; The tilemap drawing flag is saved and restored to prevent this.
+    ld      a, (DrawTilemapFlag)
+    ex      af, af'
     call    LABEL_2BA1
+    ex      af, af'
+    ld      (DrawTilemapFlag), a
+
     ld      a, ($4E6E)
     and     a
     jr      z, LABEL_413
@@ -1032,6 +1058,8 @@ LABEL_5F3:
     .db     $1C, $07
     rst     $28
     .db     $1C, $0B
+    rst     $28
+    .db     $1C, $37
     rst     $28
     .db     $1E, $00
     
@@ -1418,6 +1446,8 @@ Patch02 = $+2   ; Ms. Pac - Patch 2
     ld      a, ($4E0E)
     cp      $F4
     jr      nz, LABEL_8EB
+
+LABEL_8E5:
     ld      hl, $4E04
     ld      (hl), $0C
     ret
@@ -1650,7 +1680,8 @@ Patch03:    ; Ms. Pac - Patch 3
     ld      ($4ECC), a
     ld      ($4EDC), a
 
-_:  ld      a, ($4E13)
+LABEL_A3B:
+    ld      a, ($4E13)
     cp      $14
     jr      c, +_
     ld      a, $14
@@ -1946,7 +1977,7 @@ _:  call    UpdateTilePalette
     call    UpdateTilePalette
     ret
 
-LABEL_C33:
+LABEL_C33:  ; handles demo power pellets
     ld      hl, $4732
     ld      a, $10
     cp      (hl)
@@ -1954,8 +1985,9 @@ LABEL_C33:
 
     ld      a, 0
 
-_:  ld      (hl), a
-    ld      ($4678), a
+_:  call    UpdateTilePalette
+    ld      hl, $4678
+    call    UpdateTilePalette
     ret
 
 LABEL_C42:
@@ -2737,17 +2769,8 @@ LABEL_123F:
     add     a, b
     ld      b, a
 
-    ld      a, ($4E72)
-    ld      c, a
-    ld      a, ($4E09)
-    and     c
-    jr      z, +_
-
-    set     6, b
-    set     7, b
-
     ; load sprite and color data into (HL)
-_:  ld      (hl), b
+    ld      (hl), b
     inc     hl
     ld      (hl), $18
 
@@ -2828,18 +2851,6 @@ LABEL_12CB:
     ld      de, $00B4
 
 LABEL_12D6:
-    ld      c, a
-    ld      a, ($4E72)
-    ld      b, a
-    ld      a, ($4E09)
-    and     b
-    jr      z, +_
-
-    ld      a, $C0
-    or      c
-    ld      c, a
-
-_:  ld      a, c
     ld      ($4C0A), a
 
     ld      hl, ($4DC5)
@@ -3051,73 +3062,7 @@ LABEL_141F:
     ld      a, ($4E09)
     and     b
     ret     z
-    
-    ld      b, a
-    ld      ix, $4C00
-    ld      e, 8
-    ld      c, 8
-    ld      d, 7
-
-    ; flip Blinky's coords
-    ld      a, ($4D00)
-    add     a, e
-    ld      (ix + $13), a
-
-    ld      a, ($4D01)
-    cpl
-    add     a, d
-    ld      (ix + $12), a
-
-    ; flip Pinky's coords
-    ld      a, ($4D02)
-    add     a, e
-    ld      (ix + $15), a
-
-    ld      a, ($4D03)
-    cpl
-    add     a, d
-    ld      (ix + $14), a
-
-    ; flip Inky's coords
-    ld      a, ($4D04)
-    add     a, e
-    ld      (ix + $17), a
-
-    ld      a, ($4D05)
-    cpl
-    add     a, c
-    ld      (ix + $16), a
-
-    ; flip Clyde's coords
-    ld      a, ($4D06)
-    add     a, e
-    ld      (ix + $19), a
-
-    ld      a, ($4D07)
-    cpl
-    add     a, c
-    ld      (ix + $18), a
-
-    ; flip Pac-Man's coords
-    ld      a, ($4D08)
-    add     a, e
-    ld      (ix + $1B), a
-
-    ld      a, ($4D09)
-    cpl
-    add     a, c
-    ld      (ix + $1A), a
-
-    ; flip the fruit's coords
-    ld      a, ($4DD2)
-    add     a, e
-    ld      (ix + $1D), a
-
-    ld      a, ($4DD3)
-    cpl
-    add     a, c
-    ld      (ix + $1C), a
-    jp      LABEL_14FE
+    jp      LABEL_1499
 
 ; Also flips sprites in cocktail mode (1P)
 LABEL_1490:
@@ -3127,6 +3072,7 @@ LABEL_1490:
     and     b
     ret     nz
 
+LABEL_1499:
     ld      b, a
     ld      e, 9
     ld      c, 7
@@ -3198,7 +3144,7 @@ LABEL_14FE:
     ; jump ahead if Pac-Man is dead
     ld      a, ($4DA5)
     and     a
-    jp      nz, LABEL_154B
+    jp      nz, LABEL_151C
 
     ; jump ahead if a ghost is being eaten
     ld      a, ($4DA4)
@@ -3219,44 +3165,6 @@ LABEL_14FE:
 
 ; handles Pac-Man's sprite orientation
 LABEL_151C:
-    ld      a, b
-    and     a
-    jr      z, LABEL_154B
-
-    ld      c, $C0
-    ld      a, ($4C0A)
-    ld      d, a
-    and     c
-    jr      nz, +_
-
-    ld      a, d
-    or      c
-    jp      LABEL_1548
-
-_:  ld      a, ($4D30)
-    cp      2
-    jr      nz, +_
-
-    bit     7, d
-    jr      z, LABEL_154B
-
-    ld      a, d
-    xor      c
-    jp      LABEL_1548
-
-_:  cp      3
-    jr      nz, LABEL_154B
-
-    bit     6, d
-    jr      z, LABEL_154B
-    
-    ld      a, d
-    xor     c
-    ; FALL THROUGH
-LABEL_1548:
-    ld      ($4C0A), a
-    ; FALL THROUGH
-LABEL_154B:
     ld      hl, $4DC0
     ld      d, (hl)
     ld      a, $1C
@@ -3336,33 +3244,6 @@ LABEL_15B4:
     call    LABEL_15E6
     call    LABEL_162D
     call    LABEL_1652
-
-    ld      a, b
-    and     a
-    ret     z
-
-    ld      c, $C0
-
-    ; flip all the sprites
-    ld      a, ($4C02)
-    or      c
-    ld      ($4C02), a
-
-    ld      a, ($4C04)
-    or      c
-    ld      ($4C04), a
-
-    ld      a, ($4C06)
-    or      c
-    ld      ($4C06), a
-
-    ld      a, ($4C08)
-    or      c
-    ld      ($4C08), a
-
-    ld      a, ($4C0C)
-    or      c
-    ld      ($4C0C), a
     ret
 
 LABEL_15E6:
@@ -3765,7 +3646,9 @@ _:  dec     b
 ; handles Pac-Man's speed
 LABEL_1806:
     ld      hl, $4D9D
+    call    CheckForFastHack
     ld      a, $FF
+
     cp      (hl)
     jp      z, +_
 
@@ -4063,7 +3946,7 @@ LABEL_19CD:
     ; handle Pac-Man eating a tile
 _:  push    af
     ld      a, 1
-    ld      (DrawTilemapTrig), a
+    ld      (DrawTilemapFlag), a
     pop     af
 
     ld      ix, $4E0E
@@ -5262,7 +5145,11 @@ LABEL_2195:
 LABEL_219E:
     ld      a, 1
     ld      (CoffeeBreakTrig), a
+
 Patch14 = $+2    ; Ms. Pac - Patch 20
+    ld      a, 1
+    ld      (DrawTilemapFlag), a
+
     ld      a, ($4E07)
     ld      iy, $41D2
     rst     $20
@@ -5493,6 +5380,10 @@ LABEL_22FE:
 
 ; init hardware
 LABEL_230B:
+    ; clear framebuffer
+    ld      a, 1
+    ld      (DrawTilemapFlag), a
+
     ; clear misc I/O regs
     ld      hl, $5000
     ld      b, 8
@@ -5514,6 +5405,8 @@ _:  ld      (hl), a
     jr      nz, -_
     inc     h
     djnz    --_
+
+    call    ClearTilemapCache
 
     ; clear tilemap palettes
     ld      b, 4
@@ -5652,7 +5545,8 @@ LABEL_23E8:
 ; Task 0 - refresh the screen
 LABEL_23ED:
     ld      a, 1
-    ld      (DrawTilemapTrig), a
+    ld      (DrawTilemapFlag), a
+
     ld      a, b
     rst     $20
 
@@ -5669,6 +5563,8 @@ LABEL_23F3:
 _:  rst     $08
     dec     c
     jr      nz, -_
+
+    call    ClearTilemapCache
     ret
 
 ; clear the maze
@@ -5679,6 +5575,18 @@ LABEL_2400:
 _:  rst     $08
     dec     c
     jr      nz, -_
+
+    call    ClearTilemapCache
+    ret
+
+ClearTilemapCache:
+    ld      hl, PrevTilemap & $FFFF
+    push    hl
+    pop     de
+    inc     de
+    ld      bc, $0400
+    ld      (hl), $FF
+    ldir
     ret
 
 ; Task 6 - clear tilemap palettes
@@ -5693,18 +5601,13 @@ Patch17:    ; Ms. Pac - Patch 23
     ret
 
 ; Task 2 - draw a maze
-LABEL_2419:
-    xor     a
-    ld      (CoffeeBreakTrig), a
-    inc     a
-    ld      (DrawTilemapTrig), a
-    
+LABEL_2419: 
     ld      hl, $4000
     ld      bc, DATA_3435
 LABEL_241F:
     ld      a, (bc)
     and     a
-    ret     z
+    jp      z, FinishMazeDraw
     jp      m, +_
 
     ; handle offset
@@ -5741,14 +5644,23 @@ _:  inc     hl
     inc     bc
     jp      LABEL_241F
 
+FinishMazeDraw:
+    xor     a
+    ld      (CoffeeBreakTrig), a
+    inc     a
+    ld      (DrawTilemapFlag), a
+    ret
+
 ; Task 3 - draw maze dots
 LABEL_2448:
     ld      a, 1
-    ld      (DrawTilemapTrig), a
+    ld      (DrawTilemapFlag), a
 Patch18:    ; Ms. Pac - Patch 24
     ld      hl, $4000
     ld      ix, $4E16
     ld      iy, DATA_35B5
+
+LABEL_2453:
     ld      d, 0
     ld      b, $1E
 
@@ -5792,6 +5704,7 @@ Patch1A = $+1   ; Ms. Pac - Patch 26
     ld      ix, $4E16
     ld      iy, DATA_35B5
 
+LABEL_2492:
     ld      d, 0
     ld      b, $1E
 
@@ -5857,9 +5770,11 @@ Patch1C = $+1   ; Ms. Pac - Patch 28
     ld      a, 16
     ld      hl, $909F
 
+    ; update LCD palette
 _:  ld.lil  (mpLcdPalette + (16*4*2) + 6), hl
     ld.lil  (mpLcdPalette + (27*4*2) + 6), hl
 
+LABEL_24E1:
     ld      hl, $4440
     ld      bc, $8004
 
@@ -7043,6 +6958,7 @@ Patch24:    ; Ms. Pac - Patch 36
     cp      $08
     jp      nc, LABEL_2C2E
 
+LABEL_2BF9:
     ld      de, DATA_3B08
     ld      b, a
 LABEL_2BFD:
@@ -7129,7 +7045,7 @@ _:  add     a, c
 ; draw string onto tilemap
 LABEL_2C5E:
     ld      a, 1
-    ld      (DrawTilemapTrig), a
+    ld      (DrawTilemapFlag), a
 
     ld      hl, DATA_36A5
     rst     $18
@@ -7138,7 +7054,10 @@ LABEL_2C5E:
     ; DE = tilemap offset
     ld      e, (hl)
     inc     hl
-    ld      d, (hl)
+    ld      a, (hl)
+    and     $03
+    ld      d, a
+
     ; IX = color table ptr
     ld      ix, $4400
     add     ix, de
@@ -7221,6 +7140,7 @@ Patch25 = $+1    ; Ms. Pac - Patch 37
 ; handle audio
 LABEL_2CC1:
     ld      hl, MusicData1
+LABEL_2CC4:
     ld      ix, CH1_W_NUM
     ld      iy, CH1_FREQ0
     call    LABEL_2D44
@@ -7793,13 +7713,13 @@ DATA_32F9:
     .db "02"    ; 20k points
 
 DATA_32FF:
-.db $00, $FF
+.db 0, -1
 DATA_3301:
-.db $01, $00
+.db 1, 0
 DATA_3303:
-.db $00, $01
+.db 0, 1
 DATA_3305:
-.db $FF, $00
+.db -1, 0
 
 DATA_3307:
 .db $00, $FF
@@ -7966,6 +7886,7 @@ DATA_36A5:  ; Ms. Pac - patch some indices
 .dw DATA_3E11	; EEEEEEEE
 .dw DATA_3DB4	; POKEY
 .dw DATA_3E30	; GGGGGGGG
+.dw PorterText	; PORTED BY GRUBBY
 
 #include "src/Arcade/includes/strings1.asm"
 
@@ -8112,7 +8033,7 @@ UpdateTilePalette:
     add     hl, bc
     ld      (hl), 0
 
-    ld      hl, DrawTilemapTrig
+    ld      hl, DrawTilemapFlag
     ld      (hl), 1
 
     pop     bc
@@ -8129,6 +8050,10 @@ HandleInterrupt:
     push    ix
     push    iy
 
+    call.lil HandleCocktailFlip + romStart
+
+    call    HandleScroll
+
     call.lil DrawScreen + romStart
     
     call.lil HandleInput + romStart
@@ -8136,7 +8061,10 @@ HandleInterrupt:
 IntVector = $+1
     call    HandleVBlank
 
-    call    HandleScroll
+    ld      a, 8
+    ld.lil  (mpLcdIcr), a
+
+    call.lil CheckForExit
 
     ; restore registers
     pop     iy
@@ -8144,10 +8072,6 @@ IntVector = $+1
     pop     hl
     pop     de
     pop     bc
-
-    ld      a, 8
-    ld.lil  (mpLcdIcr), a
-
     pop     af
     ei
     reti
@@ -8165,6 +8089,7 @@ HandleScroll:
     ; if the demo's playing the game, use the regular scrolling.
     ; Otherwise, use the cutscene one
     ld      a, ($4E02)
+DemoScrollState = $+1
     cp      $23
     jr      z, HandleScroll_Gameplay
     jr      HandleScroll_Cutscene
@@ -8212,6 +8137,7 @@ _:  cp      $80 + 24
 
     ; otherwise, scroll based off of Pac-Man's Y position
 _:  sub     $80 - 24
+
 UpdateScrollReg:
     ld.lil  (mpLcdMBASE + 1), a
     ret
@@ -8242,21 +8168,54 @@ _:  pop     hl
 DIPSwitch:
     .db %11001001
 
+; checks if the speedup chip is enabled
+CheckForFastHack:
+    ; use normal Pac-Man speed if there's a coffee break
+    ld      a, (CoffeeBreakTrig)
+    or      a
+    ret     nz
+
+    ; use normal Pac-Man speed if speedup isn't enabled
+    ld      a, (FastHackTrig)
+    or      a
+    ret     z
+
+    ld      a, $FF
+    pop     bc
+    ld      bc, $11CA
+    jp      LABEL_1843 + 2
+
+FastHackTrig:
+    .db     0
+
 .ASSUME ADL=1
 ; run in ADL mode
 DrawScreen:
     call    PartialRedraw
 
-    ld      hl, DrawTilemapTrig
-    ld.sis  a, (hl)
+    ; check if the tilemap should be redrawn
+    ld      hl, DrawTilemapFlag + romStart
+    ld      a, (hl)
+    ld      (hl), 0
     or      a
-    push    hl
-    call    nz, DrawTilemap
-    pop     hl
-    ld.sis  (hl), 0
+    call    nz, DrawMainTilemap
 
     call    SaveSpriteBG
     call    DrawSprites
+
+    call    DrawHUDTilemap
+    call    DrawLivesTilemap
+    ret.sis
+
+; emulates Pac-Man cocktail flipping
+HandleCocktailFlip:
+    ; $5003 = Pac-Man screen flip register
+    ld      a, ($5003 + romStart)
+    bit     0, a
+    push    af
+    call    nz, FlipScreenSPI
+    pop     af
+    call    z, UnflipScreenSPI
     ret.sis
 
 Setup:
@@ -8265,11 +8224,13 @@ Setup:
     ld      (mpLCdMBASE), hl
 
     ; load Pac-Man tile and sprite ROMs
+LoadArt = $+1
     ld      hl, ArtHeader + romStart
     call    Mov9ToOP1
     call    ChkFindSym
-    jp.sis  c, $F000
+    jp      c, ErrorQuit
 
+HeaderSize = $+1
     ld      hl, $0012
     add     hl, de
     ld      de, pixelShadow
@@ -8278,10 +8239,16 @@ Setup:
 
     ld      hl, ADLShift + romStart
     ld      de, cursorImage
-    ld      bc, RenderEnd - DrawTilemap
+    ld      bc, CursorCodeEnd - CursorCodeStart
+    ldir
+
+    ld      hl, TextShadowShift + romStart
+    ld      de, TextShadow
+    ld      bc, ShadowCodeEnd - ShadowCodeStart
     ldir
     
     ; load Pac-Man palette ROM
+ConvertPaletteLIL:
     call    ConvertPalette 
     ret.sis
 
@@ -8295,11 +8262,8 @@ HandleInput:
 
     ld      ix, IN1_Maps + romStart
     call    UpdateInputLoop + romStart
+    res     7, a
     ld      (IN1 + romStart), a
-
-    ld      a, (kbdG6)
-    and     kbdClear
-    jp.sis  nz, $F000
     ret.sis
 
 UpdateInputLoop:
@@ -8337,14 +8301,14 @@ IN0_Maps:
     .db 0, 0                    ; credit button, unmapped
 
 IN1_Maps:
-    .db KbdG7 & $FF, kbdUp
-    .db KbdG7 & $FF, kbdLeft
-    .db KbdG7 & $FF, kbdRight
     .db KbdG7 & $FF, kbdDown
-    .db KbdG1 & $FF, kbdDel     ; board test. releasing causes reset
-    .db KbdG1 & $FF, kbdMode    ; player 1 start
+    .db KbdG7 & $FF, kbdRight
+    .db KbdG7 & $FF, kbdLeft
+    .db KbdG7 & $FF, kbdUp
+    .db KbdG1 & $FF, kbdDel      ; board test. releasing causes reset
+    .db KbdG1 & $FF, kbdMode     ; player 1 start
     .db KbdG3 & $FF, kbdGraphVar ; player 2 start
-    .db 0, 0                    ; cabinet type, unmapped
+    .db 0, 0                     ; cabinet type, unmapped
 
 IN0:
     .db $FF
@@ -8358,6 +8322,15 @@ IN1:
 
 ADLShift:
 .ORG cursorImage
-#include "src/Arcade/PacRenderer.asm"
 
+CursorCodeStart:
+#include "src/Arcade/PacRenderer.asm"
+CursorCodeEnd:
 #include "src/includes/ti_equates.asm"
+
+.ORG ADLShift + (CursorCodeEnd - CursorCodeStart)
+TextShadowShift:
+.ORG TextShadow
+ShadowCodeStart:
+#include "src/includes/spi.asm"
+ShadowCodeEnd:
