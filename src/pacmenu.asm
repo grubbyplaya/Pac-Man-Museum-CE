@@ -32,6 +32,7 @@ START:
 	ld	(appData), sp
 
 	call	boot_InitializeHardware
+	call	CheckDate_ToggleAnniversary
 	call	EasterEgg_CheckAns
 JumpToLauncher:
 	di
@@ -747,7 +748,7 @@ CenterText:	; DE = text position on screen
 	ret
 
 CopyrightText:
-	.db "1980-2024 NAMCO LTD.",0
+	.db "1980-2025 NAMCO LTD.",0
 BlankCopyText:
 	.db "                    ",0
 Press2ndText:
@@ -949,7 +950,17 @@ Headers:	; headers for each game
 	.dl MsPacMSHeader
 	.dl SuperPacHeader
 
+#if PacPlus = 1
+	; Pac-Man Plus was ported via hex editing,
+	; so a Pac-Man Plus ROM is needed to build it.
+	.dl PacPlusHeader
+#endif
+
+#if PacPlus = 1
+#define CurrentGameCount 7
+#else
 #define CurrentGameCount 6
+#endif
 
 PacManArcadeHeader:
 	.db $15, "PacArc",0
@@ -965,6 +976,8 @@ MsPacMSHeader:
 	.db $15, "MsPacMan",0
 SuperPacHeader:
 	.db $15, "SuperPac",0
+PacPlusHeader:
+	.db $15, "PacPlus",0
 
 MenuPalette:	; palette for main menu
 	#import "src/includes/gfx/misc/menupalette.bin"

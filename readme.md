@@ -18,6 +18,8 @@ Ms. Pac-Man (Master System) - December 1992
 
 Super Pac-Man (Sord M5) - 198?
 
+Pac-Man Plus (Arcade) - March 1982
+
 **Coming soon:**
 
 Ms. Pac-Man (Game Gear) - 1993

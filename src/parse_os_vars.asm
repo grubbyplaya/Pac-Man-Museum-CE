@@ -12,12 +12,11 @@ EasterEgg_CheckAns:
 
 _:	ld	de, -765
 	call	CpHLDE
-	; if HL is -765 (the additve inverse of Namco), invert the screen
+	; if HL is -765, invert the screen
 	ld	a, $21
 	ret	nz
 InvertScreen:	; IN: A = Command
-	call	boot_InitializeHardware
-	ld	hl,$F80818
+	ld	hl, $F80818
 	ld	(hl), h
 	ld	(hl), $44
 	ld	(hl), a
@@ -95,3 +94,25 @@ SpecialDays:
 	.dl $0203	; Ms. Pac-Man release date (2/3)
 	.dl $091A	; Super Pac-Man release date (9/26)
 	.dl $0617	; Sonic the Hedgehog release date (6/23)
+
+CheckDate_ToggleAnniversary:	; check for January 27, 2015
+	xor	a
+	ld	(UnveilTrig), a
+
+	; bail out if the date isn't January 27
+	call	CheckDate
+	ld	bc, $011B
+	or	a
+	sbc	hl, bc
+	ret	nz
+
+	; bail out if the year isn't 2015
+	ld	hl, (CurrentYear)
+	ld	bc, 2015
+	or	a
+	sbc	hl, bc
+	ret	nz
+
+	ld	a, 1
+	ld	(UnveilTrig), a
+	ret

@@ -1,7 +1,9 @@
 @echo off
 
+set /P PlusTrig=Include Pac-Man Plus? (0 = No, 1 = Yes): 
+
 echo Building launcher...
-spasm64 -E -L src/pacmenu.asm bin/PacMan.8xp
+spasm64 -E -D PacPlus=PlusTrig -L src/pacmenu.asm bin/PacMan.8xp
 
 echo Building Pac-Man (Arcade Ver.)
 spasm64 -E -L src/Arcade/pacman.asm bin/PacArc.8xv
@@ -23,5 +25,9 @@ spasm64 -E -L src/MSPacMan/MsPacMan.asm bin/MsPacMan.8xv
 
 echo Building Super Pac-Man (Sord Ver.)
 spasm64 -E -L src/PowerPac/powerpac.asm bin/SuperPac.8xv
+
+if %PlusTrig%==1 echo Building Pac-Man Plus (Arcade Ver.)
+if %PlusTrig%==1 spasm64 -E -L src/Arcade/PacPlus/pacplus.asm bin/PacPlus.8xv
+
 echo Pac-Man Museum CE
-echo 1980-2024 Namco. Ports made by grubbycoder
+echo 1980-2025 Namco. Ports made by grubbycoder

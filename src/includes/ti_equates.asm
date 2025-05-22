@@ -57,6 +57,7 @@
 #define spiCtrl2		$08
 #define spiIntCtrl		$10
 
+#define UnveilTrig		$D031F6
 #define CheckForExit		$F000 + romStart
 #define ErrorQuit		$F016 + romStart
 
@@ -199,7 +200,6 @@ kbitDown	= 00
 kbitLeft	= 01
 kbitRight	= 02
 kbitUp		= 03
-
 
 #macro DrawText(X, Y, Text)
 	ld	ix, Text

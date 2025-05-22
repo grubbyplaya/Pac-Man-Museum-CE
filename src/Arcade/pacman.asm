@@ -8247,6 +8247,8 @@ HeaderSize = $+1
     ld      bc, ShadowCodeEnd - ShadowCodeStart
     ldir
     
+    call    SelectColors + romStart
+    
     ; load Pac-Man palette ROM
 ConvertPaletteLIL:
     call    ConvertPalette 
@@ -8254,6 +8256,18 @@ ConvertPaletteLIL:
 
 ArtHeader:
     .db $15, "PacArt", 0
+
+; chooses between an arcade-perfect or TI-BASIC palette
+SelectColors:
+    ld      a, ($D031F6)
+    or      a
+    ret     z
+
+    ld      hl, TI_Colors
+    ld      de, Colors
+    ld      bc, 32
+    ldir
+    ret
 
 HandleInput:
     ld      ix, IN0_Maps + romStart
@@ -8325,6 +8339,18 @@ ADLShift:
 
 CursorCodeStart:
 #include "src/Arcade/PacRenderer.asm"
+
+; color data
+
+Colors:
+.dw $0000, $7C00, $6A4A, $FEDF, $0000, $83FF, $A2DF, $FECA, $0000, $FFE0, $0000, $909F, $83E0, $A2D4, $FED4, $6B7F
+
+TI_Colors:
+.dw $0000, $7C00, $5880, $7C1F, $0000, $025F, $025F, $FE24, $0000, $FFE0, $0000, $001F, $8260, $8260, $FE24, $739C
+
+Palette:
+#import "src/Arcade/includes/palette.bin"
+
 CursorCodeEnd:
 #include "src/includes/ti_equates.asm"
 

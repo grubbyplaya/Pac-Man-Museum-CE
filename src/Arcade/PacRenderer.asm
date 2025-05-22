@@ -215,10 +215,10 @@ DrawSprites_Loop:
 	push	bc
 
 	call	GetSpriteCoords
+
 	; if the sprite's not visible, go to the next one
-	ld	a, c
-	or	a
-	jr	z, +_
+	dec	c
+	jr	nz, +_
 
 	; load sprite art PTR in HL
 	ld	hl, SpriteROM
@@ -293,8 +293,10 @@ DrawSprite_Normal:
 	ld	(SetSpriteGap), bc
 
 	;LD BC, INC HL \ INC DE \ DEC C
-	ld	bc, $23130D
+	ld	bc, $0D1323
 	ld	(SetPixelOrder), bc
+
+	ex	de, hl
 	jr	DrawSprite
 
 DrawSprite_YFlip:
@@ -308,35 +310,32 @@ DrawSprite_YFlip:
 	ex	de, hl
 	ld	bc, 256 * 15
 	add	hl, bc
-	ex	de, hl
 	jr	DrawSprite
 
 DrawSprite_XFlip:
 	ld	bc, 256 + 16
 	ld	(SetSpriteGap), bc
 
-	; LD BC, INC HL \ DEC DE \ DEC C
-	ld	bc, $0D1B23
+	; LD BC, DEC HL \ INC DE \ DEC C
+	ld	bc, $0D132B
 	ld	(SetPixelOrder), bc
 
 	ex	de, hl
 	ld	bc, 15
 	add	hl, bc
-	ex	de, hl
 	jr	DrawSprite
 
 DrawSprite_XYFlip:
 	ld	bc, -256 + 16
 	ld	(SetSpriteGap), bc
 
-	; LD BC, INC HL \ DEC DE \ DEC C
-	ld	bc, $0D1B23
+	; LD BC, DEC HL \ INC DE \ DEC C
+	ld	bc, $0D132B
 	ld	(SetPixelOrder), bc
 
 	ex	de, hl
 	ld	bc, (256 * 15) + 15
 	add	hl, bc
-	ex	de, hl
 	jr	DrawSprite
 
 DrawSprite:
@@ -347,7 +346,7 @@ DrawSprite:
 _:	ld	c, 16
 
 	; get sprite pixel
-_:	ld	a, (hl)
+_:	ld	a, (de)
 	or	a
 
 	; skip if it's transparent (0)
@@ -359,7 +358,7 @@ _:	ld	a, (hl)
 	exx
 
 	; write to screen
-	ld	(de), a
+	ld	(hl), a
 
 	; go to next pixel
 SetPixelOrder = $
@@ -370,12 +369,11 @@ _:	inc	hl
 
 	; go to next line
 	push	bc
-	ex	de, hl
 SetSpriteGap = $+1
 	ld	bc, 256 - 16
 	add	hl, bc
-	ex	de, hl
 	pop	bc
+
 	djnz	---_
 	pop 	af
 	ret
@@ -487,12 +485,6 @@ _:	push	bc
 	pop	bc
 	djnz	--_
 	ret
-
-Colors:
-.dw $0000, $7C00, $6A4A, $FEDF, $0000, $83FF, $A2DF, $FECA, $0000, $FFE0, $0000, $909F, $83E0, $A2D4, $FED4, $6B7F
-
-Palette:
- #import "src/Arcade/includes/palette.bin"
 
 ConvertPalette:
 	ld	ix, Palette
