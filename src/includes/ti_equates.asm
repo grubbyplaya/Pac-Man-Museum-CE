@@ -22,6 +22,7 @@
 #define ClrLCDFull		$020808
 #define Arc_Unarc		$021448
 #define ResetStatusBar		$021A3C
+#define SetAToDEU		$021D58
 #define GetAnsData		$021E70
 #define RealToInt		$021EF4
 

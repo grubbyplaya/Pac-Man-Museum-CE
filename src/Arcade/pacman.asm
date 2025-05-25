@@ -8230,12 +8230,22 @@ LoadArt = $+1
     call    ChkFindSym
     jp      c, ErrorQuit
 
+    ; if the art data appvar isn't in RAM, copy it into safeRAM
+    ld      hl, $0002
+    add     hl, de
+    call    SetAToDEU
+    cp      $D0
+    jr      nc, +_
+
 HeaderSize = $+1
     ld      hl, $0012
     add     hl, de
     ld      de, pixelShadow
     ld      bc, $8000
     ldir
+
+    ld      hl, pixelShadow
+_:  push    hl
 
     ld      hl, ADLShift + romStart
     ld      de, cursorImage
@@ -8246,6 +8256,13 @@ HeaderSize = $+1
     ld      de, TextShadow
     ld      bc, ShadowCodeEnd - ShadowCodeStart
     ldir
+
+    ; set ptrs to art data
+    pop     hl
+    ld      (TileROM_PTR), hl
+    ld      de, $4000
+    add     hl, de
+    ld      (SpriteROM_PTR), hl
     
     call    SelectColors + romStart
     

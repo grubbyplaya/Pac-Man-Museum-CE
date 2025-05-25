@@ -59,13 +59,23 @@ _:	push	af
 	push	de
 	call	Mov9ToOP1
  	call	ChkFindSym
-	ex	de, hl
-	pop	de
+	pop	hl
 	jp	c, ErrorQuit
 
-	ld	(StoreBankAddress+1), de
-	ld	de, $0013	; offset HL into actual data
+	call	SetAToDEU
+	ld	(StoreBankAddress + 1), hl
+
+	; offset HL into actual data
+	ld	hl, $0002
 	add	hl, de
+	; if the appvar is in RAM, skip
+	cp	$D0
+	jr	nc, StoreBankAddress
+
+	; use archived header offset
+	ld	hl, $0013
+	add	hl, de
+
 StoreBankAddress:
 	ld	(0), hl
 	pop	af

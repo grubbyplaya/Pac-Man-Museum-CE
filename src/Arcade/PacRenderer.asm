@@ -37,7 +37,7 @@ _:	push	hl
 	ld	c, (ix)
 	ld	b, 64
 	mlt	bc
-	ld	hl, TileROM
+	ld	hl, (TileROM_PTR)
 	add	hl, bc
 
 	; load C' with the tile palette
@@ -221,7 +221,7 @@ DrawSprites_Loop:
 	jr	nz, +_
 
 	; load sprite art PTR in HL
-	ld	hl, SpriteROM
+	ld	hl, (SpriteROM_PTR)
 	ld	bc, 0
 	ld	b, (iy + 0)
 	srl	b
@@ -508,5 +508,10 @@ _:	ld	a, (ix)
 	or	c
 	jr	nz, -_
 	ret
+
+TileROM_PTR:	; ptr to art data. 
+	.dl 0
+SpriteROM_PTR:	; always $4000 bytes after TileROM_PTR, but it's slower to calc the address
+	.dl 0
 
 RenderEnd:
